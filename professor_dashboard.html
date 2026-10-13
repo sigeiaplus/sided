@@ -1612,15 +1612,34 @@
     </div>
 
     <div id="pagina-planejamento" style="display:none;padding:24px 28px;">
+      <!-- ── Visão principal: Plano de aula (inline, dentro do layout do SIDED+) ── -->
+      <div id="planejamento-view-plano-aula" style="display:block;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--text);">Planejamento · Plano de aula</div>
+            <div id="planejamento-turma-label-pa" style="font-size:12px;color:var(--text-muted);margin-top:2px;"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <button id="planejamento-btn-curso-habilidades" type="button" onclick="planejamentoMostrarVisao('curso-habilidades')" style="display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;border:none;background:#BE185D;color:#fff;font-family:'Sora',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+              Plano de Curso e Habilidades
+            </button>
+          </div>
+        </div>
+        <div id="planejamento-plano-aula-root" class="pa pa-embed"></div>
+      </div>
+
+      <!-- ── Visão secundária: Plano de Curso e Habilidades (tela antiga de Planejamento) ── -->
+      <div id="planejamento-view-curso" style="display:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
         <div>
           <div style="font-size:16px;font-weight:700;color:var(--text);">Planejamento</div>
           <div id="planejamento-turma-label" style="font-size:12px;color:var(--text-muted);margin-top:2px;"></div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-          <button id="planejamento-btn-plano-aula" type="button" onclick="abrirPlanoDeAula()" style="display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;border:none;background:#BE185D;color:#fff;font-family:'Sora',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-            Plano de aula
+          <button id="planejamento-btn-voltar-plano-aula" type="button" onclick="planejamentoMostrarVisao('plano-aula')" style="display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;border:none;background:#BE185D;color:#fff;font-family:'Sora',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Voltar ao Plano de aula
           </button>
           <label id="planejamento-btn-trocar" style="display:none;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;border:1.5px solid var(--border);background:none;color:var(--text-muted);font-family:'Sora',sans-serif;font-size:12px;font-weight:600;cursor:pointer;" onmouseover="this.style.borderColor='#BE185D';this.style.color='#BE185D'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -1685,7 +1704,8 @@
         </div>
         <div id="planejamento-habilidades-lista" style="display:flex;flex-wrap:wrap;"></div>
       </div>
-    </div>
+          </div>
+</div>
 
     <!-- ── Modal: vincular habilidades selecionadas a várias aulas ── -->
     <div class="modal-overlay" id="modal-hab-bncc-aulas" onclick="fecharModalOutside(event,'modal-hab-bncc-aulas')">

@@ -9,7 +9,8 @@
        disciplinaId, disciplinaNome,          // turmaDisciplinaAtiva.disciplinas
        turmaId, turmaDisciplinaId, anoEscolar // turmaAtiva / turmaDisciplinaAtiva
      });
-   A tela abre por cima, com botão "Voltar ao planejamento"; não mexe no router.
+   Uso principal: PlanosAula.montar(elemento, ctx) dentro de #pagina-planejamento (planejamento.js),
+   com a classe pa-embed. abrirTela (sobreposição com "Voltar ao planejamento") continua disponível.
 
    Acesso a dados: usa api() de api.js (REST do Supabase com a chave anon) e os
    helpers _storage* de calendario_plano.js. Não usa supabase-js nem Supabase Auth.
@@ -83,6 +84,8 @@
   .pa-top .pa-btn{background:rgba(255,255,255,.15);border-color:transparent;color:#fff}
   .pa-body{max-width:900px;margin:0 auto;padding:22px 18px 60px}
   .pa *{box-sizing:border-box}
+  /* Embutido em Planejamento (professor_dashboard.html): mesmo acento da aba Planejamento (#BE185D / #FDF2F8, como o botão da sidebar). */
+  .pa.pa-embed{--purple:#BE185D;--purple-dark:#BE185D;--purple-light:#FDF2F8;max-width:960px}
   .pa h3{font-size:17px;font-weight:700;margin:0 0 4px}
   .pa .pa-sub{font-size:12px;color:var(--text-muted,#6E7BA8);margin-bottom:16px}
   .pa .pa-box{background:#fff;border:1.5px solid var(--border,#DBE4FF);border-radius:14px;padding:16px 18px;margin-bottom:14px}

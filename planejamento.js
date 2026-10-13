@@ -51,11 +51,9 @@ function _planejamentoRenderLista(files) {
   }).join('');
 }
 
-async function iniciarPlanejamento() {
-  const label = document.getElementById('planejamento-turma-label');
-  const discLabel = turmaDisciplinaAtiva?.disciplinas?.nome || turmaAtiva?.disciplina || '';
-  if (label) label.textContent = turmaAtiva ? `${turmaAtiva.nome} · ${discLabel} · ${new Date().getFullYear()}` : '';
-
+// Carrega só a parte de arquivos (PDF/imagem) da tela "Plano de Curso e Habilidades".
+// Usada após upload/remoção, para não reinicializar o resto da tela (turmas escolhidas, dias do plano semanal...).
+async function _planejamentoCarregarArquivos() {
   document.getElementById('planejamento-empty').style.display = 'none';
   document.getElementById('planejamento-viewer').style.display = 'none';
   document.getElementById('planejamento-btn-trocar').style.display = 'none';
@@ -75,7 +73,17 @@ async function iniciarPlanejamento() {
   } else {
     document.getElementById('planejamento-empty').style.display = 'flex';
   }
+}
 
+// Tela antiga (plano de curso + habilidades BNCC). Agora é a visão secundária de Planejamento.
+// Carrega uma vez por turma/disciplina; reabrir a visão só alterna a exibição (não perde estado).
+let _cursoHabCarregadoKey = null;
+async function iniciarPlanoCursoHabilidades(forcar = false) {
+  const key = String(turmaDisciplinaAtiva?.id ?? turmaAtiva?.id ?? '');
+  if (!forcar && _cursoHabCarregadoKey === key) return;
+  _cursoHabCarregadoKey = key;
+
+  await _planejamentoCarregarArquivos();
   await carregarHabilidadesPlanejamento();
   await pgInicializar();
 }
@@ -122,7 +130,7 @@ async function planejamentoRemoverArquivo(fileName) {
     const path = _planejamentoStoragePath(fileName);
     await _storageDelete('documentos', path);
     mostrarToast('✅ Arquivo removido!');
-    await iniciarPlanejamento();
+    await _planejamentoCarregarArquivos();
   } catch(err) {
     console.error('[PLANEJAMENTO] Erro ao remover:', err);
     mostrarToast('❌ Erro ao remover: ' + err.message);
@@ -146,7 +154,7 @@ async function planejamentoHandleFile(input) {
     }));
 
     mostrarToast(`✅ ${files.length} arquivo${files.length > 1 ? 's' : ''} salvo${files.length > 1 ? 's' : ''}!`);
-    await iniciarPlanejamento();
+    await _planejamentoCarregarArquivos();
   } catch(err) {
     console.error('[PLANEJAMENTO] Erro upload:', err);
     mostrarToast('❌ Erro ao salvar: ' + err.message);
@@ -159,17 +167,21 @@ window.planejamentoExibirArquivo = planejamentoExibirArquivo;
 window.planejamentoRemoverArquivo = planejamentoRemoverArquivo;
 window.planejamentoHandleFile = planejamentoHandleFile;
 
-// ── Plano de aula (planos_core.js + planos_aula.js) ──────────────────────────
-// Botão "Plano de aula" do cabeçalho de Planejamento. Abre a tela do módulo por
-// cima da página, com o contexto do professor logado e da turma/disciplina ativa.
-function abrirPlanoDeAula() {
+// ── Planejamento: Plano de aula (tela principal) + Plano de Curso e Habilidades (secundária) ──
+// Entrada padrão (router.js → iniciarPlanejamento): Plano de aula, montado inline dentro de
+// #pagina-planejamento (mesmo layout/sidebar do SIDED+). O botão "Plano de Curso e Habilidades"
+// alterna para a tela antiga. As duas visões ficam no DOM; alternar só mostra/esconde, então
+// formulários, listas e seleções não são perdidos.
+
+let _planoAulaMontadoKey = null;
+let _planejamentoVisaoAtual = 'plano-aula';
+
+function _planoAulaContexto() {
   const prof = JSON.parse(sessionStorage.getItem('prof_data') || '{}');
   const disc = turmaDisciplinaAtiva?.disciplinas;
   const disciplinaId = disc?.id ?? turmaDisciplinaAtiva?.disciplina_id;
-  if (!prof.id) { mostrarToast('❌ Sessão do professor não encontrada. Entre novamente.'); return; }
-  if (!turmaDisciplinaAtiva || disciplinaId == null) { mostrarToast('Abra uma turma com componente curricular antes de criar o plano.'); return; }
-  if (!window.PlanosAula) { mostrarToast('❌ Módulo Plano de aula não carregou. Atualize a página (Ctrl+F5).'); return; }
-  window.PlanosAula.abrirTela({
+  if (!prof.id || !turmaDisciplinaAtiva || disciplinaId == null) return null;
+  return {
     professorId: prof.id,
     professorNome: prof.nome || '',
     disciplinaId,
@@ -177,8 +189,66 @@ function abrirPlanoDeAula() {
     turmaId: turmaAtiva?.id ?? turmaDisciplinaAtiva?.turmas?.id ?? null,
     turmaDisciplinaId: turmaDisciplinaAtiva.id,
     anoEscolar: turmaAtiva?.ano ?? null
-  });
+  };
 }
+
+// Monta o Plano de aula na própria página. Só remonta se mudou o professor/turma/disciplina.
+function _planoAulaMontar() {
+  const root = document.getElementById('planejamento-plano-aula-root');
+  if (!root) return;
+  const ctx = _planoAulaContexto();
+  const key = ctx ? `${ctx.professorId}:${ctx.turmaDisciplinaId}` : 'sem-contexto';
+  if (_planoAulaMontadoKey === key && root.childNodes.length) return; // já montado: preserva o estado
+
+  root.innerHTML = '';
+  _planoAulaMontadoKey = key;
+  if (!ctx) {
+    root.innerHTML = '<div style="padding:14px 16px;border-radius:10px;background:#FDF2F8;border:1.5px solid var(--border);font-size:12px;color:var(--text-muted);">Abra uma turma com componente curricular e faça login como professor para usar o Plano de aula.</div>';
+    return;
+  }
+  if (!window.PlanosAula) {
+    _planoAulaMontadoKey = null;
+    root.innerHTML = '<div style="padding:14px 16px;border-radius:10px;background:#FEF2F2;border:1px solid #FCA5A5;font-size:12px;color:#B91C1C;">Módulo Plano de aula não carregou. Atualize a página (Ctrl+F5).</div>';
+    return;
+  }
+  root.className = 'pa pa-embed';
+  window.PlanosAula.montar(root, ctx);
+}
+
+// 'plano-aula' | 'curso-habilidades'
+async function planejamentoMostrarVisao(qual) {
+  const planoAula = document.getElementById('planejamento-view-plano-aula');
+  const curso = document.getElementById('planejamento-view-curso');
+  if (!planoAula || !curso) return;
+  _planejamentoVisaoAtual = qual === 'curso-habilidades' ? 'curso-habilidades' : 'plano-aula';
+
+  planoAula.style.display = _planejamentoVisaoAtual === 'plano-aula' ? 'block' : 'none';
+  curso.style.display = _planejamentoVisaoAtual === 'curso-habilidades' ? 'block' : 'none';
+
+  if (_planejamentoVisaoAtual === 'plano-aula') {
+    _planoAulaMontar();
+  } else {
+    await iniciarPlanoCursoHabilidades();
+  }
+}
+
+// Ponto de entrada chamado por router.js ao clicar em Planejamento na sidebar.
+// Abre sempre o Plano de aula; a tela antiga fica acessível pelo botão secundário.
+async function iniciarPlanejamento() {
+  const discLabel = turmaDisciplinaAtiva?.disciplinas?.nome || turmaAtiva?.disciplina || '';
+  const texto = turmaAtiva ? `${turmaAtiva.nome} · ${discLabel} · ${new Date().getFullYear()}` : '';
+  ['planejamento-turma-label', 'planejamento-turma-label-pa'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = texto;
+  });
+  await planejamentoMostrarVisao('plano-aula');
+}
+
+// Compatibilidade: o botão antigo "Plano de aula" chamava esta função.
+function abrirPlanoDeAula() { return planejamentoMostrarVisao('plano-aula'); }
+
+window.planejamentoMostrarVisao = planejamentoMostrarVisao;
+window.iniciarPlanoCursoHabilidades = iniciarPlanoCursoHabilidades;
 window.abrirPlanoDeAula = abrirPlanoDeAula;
 
 // ═════════════════════════════════════════════════════════════════════════════
