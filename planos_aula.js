@@ -2,15 +2,18 @@
    SIDED+ — planos_aula.js   (requer planos_core.js carregado antes)
    Tela própria de Plano de Aula dentro de Planejamento. Sem IA.
 
-   Em Planejamento, adicione um botão que chame:
+   Integrado em Planejamento pelo botão "Plano de aula" (professor_dashboard.html),
+   que chama abrirPlanoDeAula() em planejamento.js, que por sua vez chama:
      PlanosAula.abrirTela({
-       professorId, professorNome,            // do usuário autenticado
-       disciplinaId, disciplinaNome,          // componente curricular atual
-       anoEscolar                             // opcional (filtra habilidades)
+       professorId, professorNome,            // de sessionStorage 'prof_data'
+       disciplinaId, disciplinaNome,          // turmaDisciplinaAtiva.disciplinas
+       turmaId, turmaDisciplinaId, anoEscolar // turmaAtiva / turmaDisciplinaAtiva
      });
    A tela abre por cima, com botão "Voltar ao planejamento"; não mexe no router.
 
-   Tudo que depende do seu esquema fica em CFG (marcado "AJUSTAR").
+   Acesso a dados: usa api() de api.js (REST do Supabase com a chave anon) e os
+   helpers _storage* de calendario_plano.js. Não usa supabase-js nem Supabase Auth.
+   Tudo que depende do esquema fica em CFG.
    ========================================================================== */
 (function (g) {
   'use strict';
@@ -18,29 +21,49 @@
   if (!C) throw new Error('planos_aula.js: carregue planos_core.js antes.');
   const { esc, norm, fmtData, vazio } = C;
 
-  /* ───────────── CONFIG (AJUSTAR) ───────────── */
+  /* ───────────── CONFIG ───────────── */
+  const API = (path, opts) => {
+    if (typeof g.api !== 'function') throw new Error('api() não encontrada. Carregue api.js antes de planos_aula.js.');
+    return g.api(path, opts);
+  };
+  const enc = encodeURIComponent;
   const CFG = {
-    client: () => g.sb || g.supabaseClient || g.supabase_client,       // AJUSTAR
-    T: { modelos: 'plano_modelos', planos: 'plano_docs' },
-    bucket: 'plano-modelos',
-    async carregarTurmas(ctx, sb) {                                     // AJUSTAR → [{id, nome}]
-      const { data, error } = await sb.from('turmas').select('id, nome')
-        .eq('professor_id', ctx.professorId).eq('disciplina_id', ctx.disciplinaId).order('nome');
-      if (error) throw error;
-      return data || [];
+    T: { modelos: 'plano_modelos', planos: 'plano_docs' },   // tabelas novas (ver sql/plano_aula.sql)
+    bucket: 'documentos',                                    // bucket que o SIDED+ já usa
+    pastaModelos: 'planos_modelos',                          // modelos .docx ficam em documentos/planos_modelos/<professor>/
+    // Turmas do professor no MESMO componente curricular (turma_disciplinas). → [{id, nome}]
+    async carregarTurmas(ctx) {
+      let tds = (g.todasTurmaDisciplinas || []).filter(td => td.turmas && String(td.disciplinas?.id) === String(ctx.disciplinaId));
+      if (!tds.length) {
+        const rows = await API(`turma_disciplinas?professor_id=eq.${enc(ctx.professorId)}&disciplina_id=eq.${enc(ctx.disciplinaId)}&select=id,turmas(id,nome)`);
+        tds = (rows || []).filter(td => td.turmas);
+      }
+      const mapa = new Map();
+      tds.forEach(td => mapa.set(String(td.turmas.id), { id: String(td.turmas.id), nome: td.turmas.nome }));
+      return [...mapa.values()].sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR', { numeric: true }));
     },
-    async carregarHabilidades(ctx, sb) {                                // AJUSTAR → [{id, codigo, descricao}]
-      let q = sb.from('habilidades_bncc').select('id, codigo, descricao');
-      if (ctx.disciplinaId) q = q.eq('disciplina_id', ctx.disciplinaId);
-      if (ctx.anoEscolar) q = q.eq('ano', ctx.anoEscolar);
-      const { data, error } = await q.order('codigo');
-      if (error) throw error;
-      return data || [];
+    // Reaproveita habilidades_planejamento (a mesma tabela do card Habilidades BNCC). Não cria cadastro novo.
+    // → [{id, codigo, descricao}] sem repetir código (prefere a da turma_disciplina ativa).
+    async carregarHabilidades(ctx) {
+      const rows = await API(`turma_disciplinas?professor_id=eq.${enc(ctx.professorId)}&disciplina_id=eq.${enc(ctx.disciplinaId)}&select=id`);
+      const ids = (rows || []).map(r => r.id);
+      if (ctx.turmaDisciplinaId && !ids.some(i => String(i) === String(ctx.turmaDisciplinaId))) ids.push(ctx.turmaDisciplinaId);
+      if (!ids.length) return [];
+      const habs = await API(`habilidades_planejamento?turma_disciplina_id=in.(${ids.map(enc).join(',')})&select=id,turma_disciplina_id,codigo,descricao&order=codigo.asc&limit=2000`);
+      const ativa = String(ctx.turmaDisciplinaId || '');
+      const porCodigo = new Map();
+      (habs || []).forEach(h => {
+        const k = norm(h.codigo), atual = porCodigo.get(k);
+        if (!atual || (String(h.turma_disciplina_id) === ativa && String(atual.turma_disciplina_id) !== ativa)) porCodigo.set(k, h);
+      });
+      return [...porCodigo.values()].map(h => ({ id: h.id, codigo: h.codigo, descricao: h.descricao }))
+        .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo), 'pt-BR'));
     }
   };
 
   // Modelo oficial versionado no GitHub (pasta modelos/ na raiz, servida pela Vercel).
   CFG.oficial = { url: '/modelos/plano_de_aula.docx', arquivo: 'plano_de_aula.docx', nome: 'Plano de aula (modelo oficial)' };
+  const urlPublica = path => `${g.SUPABASE_URL}/storage/v1/object/public/${CFG.bucket}/${encodeURI(path)}`;
 
   const AUTO = ['professor_nome', 'disciplina'];
   const DERIVADAS = ['data_1', 'data_2', 'turmas', 'habilidade', ...AUTO];
@@ -149,7 +172,6 @@
   }
 
   function montar(app, ctx) {
-    const sb = () => { const c = CFG.client(); if (!c) throw new Error('Cliente Supabase não encontrado. Ajuste CFG.client em planos_aula.js.'); return c; };
     const toast = m => { const d = document.createElement('div'); d.className = 'pa-toast'; d.textContent = m; document.body.appendChild(d); setTimeout(() => d.remove(), 3500); };
     const aviso = (m) => { const d = document.createElement('div'); d.className = 'pa-aviso'; d.textContent = m; return d; };
     let S = null; // estado do formulário
@@ -162,14 +184,11 @@
       app.querySelector('#pa-novo').onclick = () => viewModelos(true);
       app.querySelector('#pa-mod').onclick = () => viewModelos(false);
       let planos = [];
-      try {
-        const { data, error } = await sb().from(CFG.T.planos)
-          .select('id, tema, disciplina_nome, datas, turmas, atualizado_em')
-          .eq('professor_id', ctx.professorId).order('atualizado_em', { ascending: false });
-        if (error) throw error; planos = data || [];
-      } catch (e) { app.querySelector('#pa-lista').innerHTML = `<div class="pa-msg">Não foi possível carregar os planos: ${esc(e.message)}</div>`; return; }
-
       const box = app.querySelector('#pa-lista');
+      try {
+        planos = await API(`${CFG.T.planos}?professor_id=eq.${enc(ctx.professorId)}&select=id,tema,disciplina_nome,datas,turmas,atualizado_em&order=atualizado_em.desc`) || [];
+      } catch (e) { if (box.isConnected) box.innerHTML = `<div class="pa-msg">Não foi possível carregar os planos: ${esc(e.message)}</div>`; return; }
+      if (!box.isConnected) return; // o professor já foi para outra tela enquanto carregava
       const desenhar = () => {
         const termo = norm(app.querySelector('#pa-busca').value);
         const f = planos.filter(p => !termo || norm(p.tema).includes(termo));
@@ -190,8 +209,9 @@
     }
 
     async function getPlano(id) {
-      const { data, error } = await sb().from(CFG.T.planos).select('*').eq('id', id).single();
-      if (error) throw error; return data;
+      const rows = await API(`${CFG.T.planos}?id=eq.${enc(id)}&professor_id=eq.${enc(ctx.professorId)}&select=*`);
+      if (!rows || !rows.length) throw new Error('Plano não encontrado.');
+      return rows[0];
     }
 
     async function acao(a, id) {
@@ -206,8 +226,8 @@
 
     async function excluir(id) {
       if (!confirm('Excluir este plano de aula? Esta ação não pode ser desfeita.\nO modelo e as habilidades BNCC não serão apagados.')) return;
-      const { error } = await sb().from(CFG.T.planos).delete().eq('id', id).eq('professor_id', ctx.professorId);
-      if (error) return toast('Erro ao excluir: ' + error.message);
+      try { await API(`${CFG.T.planos}?id=eq.${enc(id)}&professor_id=eq.${enc(ctx.professorId)}`, { method: 'DELETE' }); }
+      catch (e) { return toast('Erro ao excluir: ' + e.message); }
       toast('Plano excluído.'); viewLista();
     }
 
@@ -249,9 +269,9 @@
         let bytes = null;
         if (p.modelo_arquivo_path) {
           try {
-            const { data, error } = await sb().storage.from(CFG.bucket).download(p.modelo_arquivo_path);
-            if (error) throw error;
-            bytes = await C.preencherDocx(await data.arrayBuffer(), montarValores(p)); // modelo original intacto
+            const r = await fetch(urlPublica(p.modelo_arquivo_path), { cache: 'no-store' });
+            if (!r.ok) throw new Error('arquivo não encontrado (HTTP ' + r.status + ')');
+            bytes = await C.preencherDocx(await r.arrayBuffer(), montarValores(p)); // modelo original intacto
           } catch (e) { toast('Modelo .docx indisponível; gerando versão simples. (' + e.message + ')'); }
         }
         if (!bytes) bytes = await C.gerarDocx(p.texto_final);
@@ -266,21 +286,25 @@
         <h3>${escolher ? 'Escolha o modelo do novo plano' : 'Modelos'}</h3>
         <div class="pa-sub">Modelos .docx mantêm a formatação do arquivo original, que nunca é alterado. Marque as variáveis no Word como [temas], [habilidade] etc.</div>
         <div id="pa-ml">Carregando…</div>
-        <div class="pa-row" style="margin-top:12px"><button class="pa-btn pri" id="pa-of">Usar modelo oficial</button>
+        <div class="pa-row" style="margin-top:12px"><button class="pa-btn pri" id="pa-of" hidden>Usar modelo oficial</button>
         <button class="pa-btn" id="pa-imp">Importar modelo .docx</button>
         <button class="pa-btn" id="pa-txt">Novo modelo de texto</button><input type="file" id="pa-file" accept=".docx" hidden></div>`;
       app.querySelector('#pa-lst').onclick = viewLista;
       app.querySelector('#pa-of').onclick = usarOficial;
+      fetch(CFG.oficial.url, { method: 'HEAD', cache: 'no-store' }).then(r => { // só mostra o botão se o arquivo estiver publicado
+        const ct = r.headers.get('content-type') || '';
+        const b = app.querySelector('#pa-of'); if (b && r.ok && !ct.includes('text/html')) b.hidden = false;
+      }).catch(() => {});
       app.querySelector('#pa-txt').onclick = () => viewEditorTexto(null);
       const fi = app.querySelector('#pa-file');
       app.querySelector('#pa-imp').onclick = () => fi.click();
       fi.onchange = () => { if (fi.files[0]) importarDocx(fi.files[0]); fi.value = ''; };
       let ms = [];
-      try {
-        const { data, error } = await sb().from(CFG.T.modelos).select('id, nome, conteudo, arquivo_path, arquivo_nome').eq('ativo', true).order('nome');
-        if (error) throw error; ms = data || [];
-      } catch (e) { app.querySelector('#pa-ml').innerHTML = `<div class="pa-msg">Não foi possível carregar os modelos: ${esc(e.message)}</div>`; return; }
       const box = app.querySelector('#pa-ml');
+      try {
+        ms = await API(`${CFG.T.modelos}?ativo=eq.true&criado_por=eq.${enc(ctx.professorId)}&select=id,nome,conteudo,arquivo_path,arquivo_nome&order=nome.asc`) || [];
+      } catch (e) { if (box.isConnected) box.innerHTML = `<div class="pa-msg">Não foi possível carregar os modelos: ${esc(e.message)}</div>`; return; }
+      if (!box.isConnected) return; // tela já foi trocada
       box.innerHTML = ms.length ? '' : '<div class="pa-sub">Nenhum modelo ainda. Importe um .docx ou crie o modelo padrão.</div>';
       ms.forEach(m => {
         const el = document.createElement('div'); el.className = 'pa-item';
@@ -291,8 +315,9 @@
           if (a === 'usar') iniciarForm('novo', null, m);
           if (a === 'editar') m.arquivo_path ? renomear(m) : viewEditorTexto(m);
           if (a === 'excluir' && confirm(`Excluir o modelo "${m.nome}"? Planos já criados continuam funcionando.`)) {
-            const { error } = await sb().from(CFG.T.modelos).update({ ativo: false }).eq('id', m.id);
-            if (error) return toast('Erro: ' + error.message); viewModelos(escolher);
+            try { await API(`${CFG.T.modelos}?id=eq.${enc(m.id)}&criado_por=eq.${enc(ctx.professorId)}`, { method: 'PATCH', body: JSON.stringify({ ativo: false }) }); }
+            catch (e) { return toast('Erro: ' + e.message); }
+            viewModelos(escolher);
           }
         });
         box.appendChild(el);
@@ -300,8 +325,9 @@
       if (!ms.length) {
         const b = document.createElement('button'); b.className = 'pa-btn'; b.textContent = 'Criar modelo padrão';
         b.onclick = async () => {
-          const { error } = await sb().from(CFG.T.modelos).insert({ nome: MODELO_PADRAO.nome, conteudo: MODELO_PADRAO.conteudo, ativo: true, criado_por: ctx.professorId });
-          if (error) return toast('Erro: ' + error.message); viewModelos(escolher);
+          try { await API(CFG.T.modelos, { method: 'POST', body: JSON.stringify({ nome: MODELO_PADRAO.nome, conteudo: MODELO_PADRAO.conteudo, ativo: true, criado_por: String(ctx.professorId) }) }); }
+          catch (e) { return toast('Erro: ' + e.message); }
+          viewModelos(escolher);
         };
         box.appendChild(b);
       }
@@ -309,15 +335,16 @@
 
     async function renomear(m) {
       const nome = prompt('Novo nome do modelo:', m.nome); if (!nome || !nome.trim()) return;
-      const { error } = await sb().from(CFG.T.modelos).update({ nome: nome.trim() }).eq('id', m.id);
-      if (error) return toast('Erro: ' + error.message); viewModelos(false);
+      try { await API(`${CFG.T.modelos}?id=eq.${enc(m.id)}&criado_por=eq.${enc(ctx.professorId)}`, { method: 'PATCH', body: JSON.stringify({ nome: nome.trim() }) }); }
+      catch (e) { return toast('Erro: ' + e.message); }
+      viewModelos(false);
     }
 
     // Busca o modelo oficial publicado junto com o SIDED+ (modelos/plano_de_aula.docx) e importa.
     async function usarOficial() {
       const O = CFG.oficial;
       try {
-        const { data: ja } = await sb().from(CFG.T.modelos).select('id').eq('arquivo_nome', O.arquivo).eq('ativo', true);
+        const ja = await API(`${CFG.T.modelos}?arquivo_nome=eq.${enc(O.arquivo)}&ativo=eq.true&criado_por=eq.${enc(ctx.professorId)}&select=id`);
         if (ja && ja.length && !confirm('O modelo oficial já está na lista. Importar de novo como uma nova versão?')) return;
         const r = await fetch(O.url, { cache: 'no-store' });
         if (!r.ok) throw new Error(`arquivo não encontrado em ${O.url} (HTTP ${r.status}). Confira se ele está na pasta modelos/ do repositório.`);
@@ -334,11 +361,16 @@
         const info = await C.lerDocx(buf);
         if (!info.variaveis.length && !confirm('Nenhuma variável [nome] foi encontrada neste arquivo. Importar mesmo assim?')) return;
         const nome = opt.nome || prompt('Nome do modelo:', file.name.replace(/\.docx$/i, '')); if (!nome || !nome.trim()) return;
-        const path = `${ctx.professorId}/${Date.now()}_${file.name.replace(/[^\w.\-]+/g, '_')}`; // nunca sobrescreve
-        const up = await sb().storage.from(CFG.bucket).upload(path, file, { contentType: MIME_DOCX, upsert: false });
-        if (up.error) throw up.error;
-        const { error } = await sb().from(CFG.T.modelos).insert({ nome: nome.trim(), conteudo: info.texto, arquivo_path: path, arquivo_nome: file.name, ativo: true, criado_por: ctx.professorId });
-        if (error) throw error;
+        if (typeof g._storageUpload !== 'function') throw new Error('Função de upload (_storageUpload) indisponível.');
+        const nomeSeguro = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w.\-]+/g, '_');
+        const path = `${CFG.pastaModelos}/${ctx.professorId}/${Date.now()}_${nomeSeguro}`; // caminho único: nunca sobrescreve
+        await g._storageUpload(CFG.bucket, path, new File([file], file.name, { type: MIME_DOCX }));
+        try {
+          await API(CFG.T.modelos, { method: 'POST', body: JSON.stringify({ nome: nome.trim(), conteudo: info.texto, arquivo_path: path, arquivo_nome: file.name, ativo: true, criado_por: String(ctx.professorId) }) });
+        } catch (e) {
+          if (typeof g._storageDelete === 'function') g._storageDelete(CFG.bucket, path).catch(() => {}); // não deixa arquivo órfão
+          throw e;
+        }
         toast(`Modelo importado. Variáveis: ${info.variaveis.join(', ') || 'nenhuma'}`); viewModelos(false);
       } catch (e) { toast('Erro ao importar: ' + e.message); }
     }
@@ -365,9 +397,10 @@
         const nome = app.querySelector('#pa-nome').value.trim();
         if (!nome) { app.querySelector('#pa-msg').textContent = 'Informe o nome do modelo.'; return; }
         const reg = { nome, conteudo: ta.value };
-        const { error } = await (m ? sb().from(CFG.T.modelos).update(reg).eq('id', m.id)
-          : sb().from(CFG.T.modelos).insert(Object.assign(reg, { ativo: true, criado_por: ctx.professorId })));
-        if (error) { app.querySelector('#pa-msg').textContent = 'Erro ao salvar: ' + error.message; return; }
+        try {
+          if (m) await API(`${CFG.T.modelos}?id=eq.${enc(m.id)}&criado_por=eq.${enc(ctx.professorId)}`, { method: 'PATCH', body: JSON.stringify(reg) });
+          else await API(CFG.T.modelos, { method: 'POST', body: JSON.stringify(Object.assign(reg, { ativo: true, criado_por: String(ctx.professorId) })) });
+        } catch (e) { app.querySelector('#pa-msg').textContent = 'Erro ao salvar: ' + e.message; return; }
         viewModelos(false);
       };
     }
@@ -382,7 +415,7 @@
         turmasSel: arr(plano.turmas).map(t => String(t.id)),
         turmasSnap: arr(plano.turmas).map(t => ({ id: String(t.id), nome: t.nome })),
         habs: arr(plano.habilidades)
-      } : { id: null, modelo, valores: {}, datas: [], turmasSel: [], turmasSnap: [], habs: [] };
+      } : { id: null, modelo, valores: {}, datas: [], turmasSel: ctx.turmaId ? [String(ctx.turmaId)] : [], turmasSnap: [], habs: [] };
       S = { modo, id: base.id, modelo: base.modelo, valores: base.valores, datas: base.datas, turmasSel: base.turmasSel,
         turmas: base.turmasSnap, turmasOk: false, habs: [], habsOk: false,
         habsSel: new Map(base.habs.map(h => [String(h.id), h])) };
@@ -452,7 +485,7 @@
       const corpo = el.querySelector('#pa-t');
       if (!S.turmasOk) {
         try {
-          const car = (await CFG.carregarTurmas(ctx, sb())).map(t => ({ id: String(t.id), nome: t.nome }));
+          const car = (await CFG.carregarTurmas(ctx)).map(t => ({ id: String(t.id), nome: t.nome }));
           S.turmas.forEach(t => { if (!car.some(c => c.id === t.id)) car.push(t); }); // mantém turmas já vinculadas ao plano
           S.turmas = car; S.turmasOk = true;
         } catch (e) { corpo.innerHTML = `<div class="pa-msg">Não foi possível carregar as turmas: ${esc(e.message)}</div>`; return; }
@@ -483,7 +516,7 @@
       drawSel();
       if (!S.habsOk) {
         list.textContent = 'Carregando…';
-        try { S.habs = await CFG.carregarHabilidades(ctx, sb()); S.habsOk = true; }
+        try { S.habs = await CFG.carregarHabilidades(ctx); S.habsOk = true; }
         catch (e) { q.disabled = true; sel.insertAdjacentHTML('beforeend', `<div class="pa-msg">Não foi possível carregar as habilidades: ${esc(e.message)}</div>`); return; }
       }
       const drawList = () => {
@@ -536,17 +569,18 @@
       try {
         const p = planoAtual();
         const reg = Object.assign({}, p, { texto_final: C.renderizar(S.modelo.conteudo, montarValores(p)) });
+        reg.professor_id = String(ctx.professorId);
         let id = S.id;
         if (S.modo === 'editar') {
-          const { error } = await sb().from(CFG.T.planos).update(reg).eq('id', id).eq('professor_id', ctx.professorId);
-          if (error) throw error;
+          reg.atualizado_em = new Date().toISOString();
+          const r = await API(`${CFG.T.planos}?id=eq.${enc(id)}&professor_id=eq.${enc(ctx.professorId)}`, { method: 'PATCH', body: JSON.stringify(reg) });
+          if (!r || !r.length) throw new Error('Plano não encontrado para atualizar.');
         } else {
-          const { data, error } = await sb().from(CFG.T.planos).insert(reg).select('id').single();
-          if (error) throw error; id = data.id;
+          const r = await API(CFG.T.planos, { method: 'POST', body: JSON.stringify(reg) }); // novo e clone: sempre INSERT, nunca altera o original
+          if (!r || !r.length) throw new Error('O servidor não devolveu o plano criado.');
+          id = r[0].id;
         }
-        const r = await sb().rpc('plano_set_vinculos', { p_plano: id, p_turmas: p.turmas.map(t => t.id), p_habs: p.habilidades.map(h => h.id) });
-        if (r.error) toast('Plano salvo, mas os vínculos falharam: ' + r.error.message);
-        else toast(S.modo === 'editar' ? 'Alterações salvas.' : 'Plano salvo.');
+        toast(S.modo === 'editar' ? 'Alterações salvas.' : 'Plano salvo.');
         viewPlano(await getPlano(id)); // versão digital direto na interface
       } catch (e) { btn.disabled = false; btn.textContent = rot; toast('Erro ao salvar: ' + e.message); }
     }

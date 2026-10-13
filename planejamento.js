@@ -159,6 +159,28 @@ window.planejamentoExibirArquivo = planejamentoExibirArquivo;
 window.planejamentoRemoverArquivo = planejamentoRemoverArquivo;
 window.planejamentoHandleFile = planejamentoHandleFile;
 
+// ── Plano de aula (planos_core.js + planos_aula.js) ──────────────────────────
+// Botão "Plano de aula" do cabeçalho de Planejamento. Abre a tela do módulo por
+// cima da página, com o contexto do professor logado e da turma/disciplina ativa.
+function abrirPlanoDeAula() {
+  const prof = JSON.parse(sessionStorage.getItem('prof_data') || '{}');
+  const disc = turmaDisciplinaAtiva?.disciplinas;
+  const disciplinaId = disc?.id ?? turmaDisciplinaAtiva?.disciplina_id;
+  if (!prof.id) { mostrarToast('❌ Sessão do professor não encontrada. Entre novamente.'); return; }
+  if (!turmaDisciplinaAtiva || disciplinaId == null) { mostrarToast('Abra uma turma com componente curricular antes de criar o plano.'); return; }
+  if (!window.PlanosAula) { mostrarToast('❌ Módulo Plano de aula não carregou. Atualize a página (Ctrl+F5).'); return; }
+  window.PlanosAula.abrirTela({
+    professorId: prof.id,
+    professorNome: prof.nome || '',
+    disciplinaId,
+    disciplinaNome: disc?.nome || turmaAtiva?.disciplina || '',
+    turmaId: turmaAtiva?.id ?? turmaDisciplinaAtiva?.turmas?.id ?? null,
+    turmaDisciplinaId: turmaDisciplinaAtiva.id,
+    anoEscolar: turmaAtiva?.ano ?? null
+  });
+}
+window.abrirPlanoDeAula = abrirPlanoDeAula;
+
 // ═════════════════════════════════════════════════════════════════════════════
 // CADASTRO MANUAL DE HABILIDADES BNCC
 // Tabela: habilidades_planejamento (turma_disciplina_id, codigo, descricao,
