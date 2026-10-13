@@ -185,6 +185,8 @@ async function carregarHabilidadesPlanejamento() {
   _renderHabilidadesPlanejamento();
   // Invalida o cache local usado pelo autocomplete do formulário de aula
   if (typeof window._habilidadesAulaInvalidarCache === 'function') window._habilidadesAulaInvalidarCache();
+  // Atualiza o card "Habilidades BNCC" (habilidades_aulas.js)
+  if (typeof window.iniciarCardHabilidadesBncc === 'function') window.iniciarCardHabilidadesBncc();
 }
 
 const _NOMES_TRIMESTRE = { 1: '1º tri', 2: '2º tri', 3: '3º tri' };

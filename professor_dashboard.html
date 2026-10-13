@@ -1649,6 +1649,24 @@
         <div id="planejamento-arquivos-lista" style="display:none;margin-top:18px;gap:10px;flex-wrap:wrap;"></div>
       </div>
 
+      <!-- ── Card: Habilidades BNCC (busca + filtros + vínculo com aulas) ── -->
+      <div id="card-hab-bncc" style="margin-top:28px;background:var(--white);border:1.5px solid var(--border);border-radius:14px;padding:18px 18px 8px;">
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;">Habilidades BNCC</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+          <select id="hab-bncc-componente" onchange="habBnccFiltroMudou()" style="flex:1;min-width:150px;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;"></select>
+          <select id="hab-bncc-ano" onchange="habBnccFiltroMudou()" style="flex:1;min-width:120px;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;"></select>
+        </div>
+        <div style="position:relative;margin-bottom:12px;">
+          <input id="hab-bncc-busca" type="text" autocomplete="off" placeholder="Pesquisar por código ou descrição..." oninput="habBnccBuscar(this.value)" onfocus="habBnccBuscar(this.value)" onblur="habBnccFecharDropdown()" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Sora',sans-serif;font-size:13px;">
+          <div id="hab-bncc-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:20;max-height:260px;overflow-y:auto;background:var(--white);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);"></div>
+        </div>
+        <div id="hab-bncc-selecionadas" style="display:grid;gap:8px;"></div>
+        <div id="hab-bncc-vinculos"></div>
+        <div style="display:flex;justify-content:flex-end;padding:14px 0 10px;">
+          <button id="hab-bncc-btn-vincular" onclick="habBnccAbrirModalAulas()" disabled style="opacity:.5;padding:10px 16px;border-radius:9px;border:none;background:#3B4FE4;color:#fff;font-family:'Sora',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Vincular às aulas…</button>
+        </div>
+      </div>
+
       <!-- ── Habilidades BNCC cadastradas (cadastro manual) ── -->
       <div style="margin-top:28px;border-top:1.5px solid var(--border);padding-top:22px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
@@ -1662,6 +1680,31 @@
           </button>
         </div>
         <div id="planejamento-habilidades-lista" style="display:flex;flex-wrap:wrap;"></div>
+      </div>
+    </div>
+
+    <!-- ── Modal: vincular habilidades selecionadas a várias aulas ── -->
+    <div class="modal-overlay" id="modal-hab-bncc-aulas" onclick="fecharModalOutside(event,'modal-hab-bncc-aulas')">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">Vincular às aulas</div>
+          <button class="modal-close" onclick="fecharModal('modal-hab-bncc-aulas')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div id="hab-bncc-modal-alert" style="display:none;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:9px 12px;font-size:12px;color:#B91C1C;margin-bottom:14px;"></div>
+          <div id="hab-bncc-modal-resumo" style="margin-bottom:8px;"></div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <input id="hab-bncc-modal-busca" type="text" placeholder="Buscar aula por tema ou data..." oninput="habBnccModalBuscar(this.value)" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;">
+            <button onclick="habBnccSelecionarTodasVisiveis()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;background:none;font-family:'Sora',sans-serif;font-size:11px;font-weight:600;cursor:pointer;">Marcar todas</button>
+          </div>
+          <div id="hab-bncc-modal-aulas" style="max-height:44vh;overflow-y:auto;"></div>
+          <div id="hab-bncc-modal-contador" style="font-size:11px;color:var(--text-muted);margin-top:8px;"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="hab-bncc-modal-confirmar" onclick="habBnccConfirmarVinculo()" style="flex:1;padding:11px;border-radius:9px;border:none;background:#3B4FE4;color:#fff;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Vincular</button>
+        </div>
       </div>
     </div>
 
@@ -2287,6 +2330,7 @@
 <script src="/planos_assets.js"></script>
 <script src="/planos_gerador.js"></script>
 <script src="/planejamento.js"></script>
+<script src="/habilidades_aulas.js"></script>
 <script src="/init.js"></script>
 <!-- MODAL FICHA DO ALUNO -->
 <div class="modal-overlay" id="modal-ficha-aluno" onclick="if(event.target===this)this.classList.remove('open')" style="align-items:center;z-index:9050;">
