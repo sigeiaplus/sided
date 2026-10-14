@@ -799,33 +799,35 @@ window.abrirModalAula = function(data) {
 // ─── 2. PATCH: salvarAula — vínculos de habilidades via aula_habilidades ────
 //  Substitua a função salvarAula original por esta:
 window.salvarAula = async function() {
-  const tri = detectarTrimestreAtual().tri;
-  if (await verificarBloqueio(tri)) return;
   const btn = document.getElementById('btn-salvar-aula');
+  if (!btn || btn.disabled) return;
   btn.disabled = true;
+  const textoOriginalBtn = btn.textContent;
+  btn.textContent = 'Salvando...';
   const alEl = document.getElementById('aula-alert');
   alEl.style.display = 'none';
+
+  try {
+  const tri = detectarTrimestreAtual().tri;
+  if (await verificarBloqueio(tri)) return;
 
   const dataStr = document.getElementById('aula-data').value;
   const nome = document.getElementById('aula-nome').value.trim(); // TEMA → salvo como nome
   if (!dataStr || !nome) {
     alEl.textContent = 'Data e tema são obrigatórios.';
     alEl.style.display = 'block';
-    btn.disabled = false;
     return;
   }
   const descricao = document.getElementById('aula-desc').value.trim(); // DESCRIÇÃO → salvo como descricao
   if (!descricao) {
     alEl.textContent = 'A descrição é obrigatória.';
     alEl.style.display = 'block';
-    btn.disabled = false;
     return;
   }
   const dataISO = parseDateBR(dataStr);
   if (!dataISO) {
     alEl.textContent = 'Data inválida. Use DD/MM/AAAA.';
     alEl.style.display = 'block';
-    btn.disabled = false;
     return;
   }
   const profData = JSON.parse(sessionStorage.getItem('prof_data') || '{}');
@@ -843,7 +845,6 @@ window.salvarAula = async function() {
     ...(discVal ? { disciplina: discVal } : {}),
   };
 
-  try {
     let aulaId = editandoAulaId;
     if (editandoAulaId) {
       await api(`aulas?id=eq.${editandoAulaId}`, { method: 'PATCH', body: JSON.stringify(body) });
@@ -864,10 +865,12 @@ window.salvarAula = async function() {
     atualizarCalendario('cal-aula');
     if (typeof mostrarToast === 'function') mostrarToast('Aula salva com sucesso!');
   } catch (e) {
-    alEl.textContent = 'Erro ao salvar.';
+    alEl.textContent = `Erro ao salvar: ${e?.message || 'Tente novamente.'}`;
     alEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginalBtn;
   }
-  btn.disabled = false;
 };
 
 // ─── 3. HABILIDADES BNCC — multi-seleção via chips ─────────────────────────

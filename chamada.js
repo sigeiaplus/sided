@@ -579,13 +579,19 @@ function _linhaChamadaAluno(aulaId, aluno) {
 }
 
 async function salvarChamada() {
+  const wrap = document.getElementById('btn-salvar-chamada-wrap');
+  const btn = wrap?.querySelector('button');
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.setAttribute('aria-busy', 'true');
+
+  try {
+  if (typeof showLoading === 'function') showLoading('Salvando chamada...');
   const tri = detectarTrimestreAtual().tri;
   if (await verificarBloqueio(tri)) return;
-  const aulaId = document.getElementById('btn-salvar-chamada-wrap')._aulaId;
+  const aulaId = wrap._aulaId;
   const aulaAtual = aulasTurma.find(a => a.id === aulaId);
   const rows = alunosTurma.map(a => _linhaChamadaAluno(aulaId, a));
-
-  if (typeof showLoading === 'function') showLoading('Salvando chamada...');
 
   // Salva a chamada de uma única aula: DELETE (limpa registros antigos) →
   // POST (grava os novos) → PATCH (marca status lecionada). Essas 3 etapas
@@ -628,8 +634,11 @@ async function salvarChamada() {
   } catch (e) {
     console.error('[CHAMADA] Erro ao salvar:', e);
     if (typeof mostrarErro === 'function') mostrarErro('Erro ao salvar chamada. Tente novamente.');
+  }
   } finally {
     if (typeof hideLoading === 'function') hideLoading();
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
   }
 }
 
