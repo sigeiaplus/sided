@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="sided_logo.png"/>
   <link rel="apple-touch-icon" href="sided_logo.png"/>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <meta name="theme-color" content="#4A2C6E"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -831,6 +831,19 @@
 
       .sidebar .btn-sair { color: rgba(255,255,255,0.75) !important; }
       .sidebar .btn-sair:hover { color: #fff !important; }
+
+      .mobile-header-right .mh-btn { width: 44px; height: 44px; }
+      .sidebar .stb, .sidebar .btn-sair, .modal .btn-save { min-height: 44px; }
+      .modal .modal-close { width: 44px; height: 44px; flex-shrink: 0; }
+      .sidebar .sidebar-nav { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+      .modal-overlay { overscroll-behavior: contain; }
+      .modal {
+        max-height: min(92vh, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))) !important;
+        padding-bottom: env(safe-area-inset-bottom);
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+      }
+
       /* Chips de filtro das aulas em wrap menor */
       .filtros-row { gap: 6px; }
       /* Notas: já empilhado em coluna pela regra acima; nada extra aqui. */

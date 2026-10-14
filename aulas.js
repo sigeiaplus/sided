@@ -847,13 +847,16 @@ window.salvarAula = async function() {
 
     let aulaId = editandoAulaId;
     if (editandoAulaId) {
-      await api(`aulas?id=eq.${editandoAulaId}`, { method: 'PATCH', body: JSON.stringify(body) });
+      const atualizadas = await api(`aulas?id=eq.${editandoAulaId}`, { method: 'PATCH', body: JSON.stringify(body) });
+      if (!atualizadas?.length) throw new Error('A aula não foi encontrada ou você não tem permissão para alterá-la.');
       const idx = aulasTurma.findIndex(a => a.id === editandoAulaId);
       if (idx !== -1) aulasTurma[idx] = { ...aulasTurma[idx], ...body };
     } else {
       const res = await api('aulas', { method: 'POST', body: JSON.stringify(body) });
-      const nova = (res && res[0]) ? res[0] : { ...body, id: Date.now() };
+      const nova = res?.[0];
+      if (!nova?.id) throw new Error('O Supabase não confirmou a criação da aula. Verifique sua conexão e tente novamente.');
       aulaId = nova.id;
+      editandoAulaId = nova.id;
       aulasTurma.push(nova);
       chamadaCacheSet(nova.id, false);
     }

@@ -441,8 +441,11 @@ async function roteadorRestaurar() {
 }
 
 // Inicializa os escutadores do History API
+let _popstateRegistrado = false;
+
 async function roteadorInicializar() {
-  window.addEventListener('popstate', async (e) => {
+  if (!_popstateRegistrado) {
+    window.addEventListener('popstate', async (e) => {
     if (e.state) {
       const { pagina, turmaId, opts } = e.state;
       if (pagina === 'dashboard' || !turmaId) {
@@ -456,7 +459,9 @@ async function roteadorInicializar() {
     } else {
       await roteadorRestaurar();
     }
-  });
+    });
+    _popstateRegistrado = true;
+  }
   await roteadorRestaurar();
 }
 

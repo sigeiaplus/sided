@@ -41,6 +41,25 @@ function atualizarAvatarSidebar(fotoUrl) {
   });
 }
 
+async function _atualizarPerfilComConfirmacao(tabela, id, dados) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${tabela}?id=eq.${encodeURIComponent(id)}&select=id`, {
+    method: 'PATCH',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    },
+    body: JSON.stringify(dados)
+  });
+  const rows = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(rows?.message || `Supabase respondeu com HTTP ${res.status}.`);
+  if (!Array.isArray(rows) || !rows.some(row => row?.id != null)) {
+    throw new Error('Nenhum registro foi atualizado. Confira sua sessão e permissões.');
+  }
+  return rows[0];
+}
+
 window.abrirPerfil = async function() {
   try {
     let profData = JSON.parse(sessionStorage.getItem('prof_data') || '{}');
@@ -140,18 +159,11 @@ window.salvarEmailPerfil = async function() {
     return;
   }
 
+  const btn = document.querySelector('button[onclick="salvarEmailPerfil()"]');
+  if (btn?.disabled) return;
+  if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${session.id}`, {
-      method: 'PATCH',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({ email })
-    });
-    if (!res.ok) throw new Error('Erro ao salvar');
+    await _atualizarPerfilComConfirmacao('users', session.id, { email });
     session.email = email;
     sessionStorage.setItem('ded_user', JSON.stringify(session));
     msgEl.textContent = 'E-mail salvo com sucesso!';
@@ -166,6 +178,8 @@ window.salvarEmailPerfil = async function() {
     msgEl.style.background = '#FEF2F2';
     msgEl.style.display = 'block';
     if (typeof mostrarErro === 'function') mostrarErro('Erro ao salvar e-mail. Tente novamente.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
   }
 };
 
@@ -209,18 +223,11 @@ window.salvarDadosPerfil = async function() {
     return;
   }
 
+  const btn = document.querySelector('button[onclick="salvarDadosPerfil()"]');
+  if (btn?.disabled) return;
+  if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/professores?id=eq.${profData.id}`, {
-      method: 'PATCH',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({ nome })
-    });
-    if (!res.ok) throw new Error('Erro ao salvar');
+    await _atualizarPerfilComConfirmacao('professores', profData.id, { nome });
     profData.nome = nome;
     sessionStorage.setItem('prof_data', JSON.stringify(profData));
     const nomeHeader = document.getElementById('perfil-header-nome');
@@ -239,6 +246,8 @@ window.salvarDadosPerfil = async function() {
     msgEl.style.background = '#FEF2F2';
     msgEl.style.display = 'block';
     if (typeof mostrarErro === 'function') mostrarErro('Erro ao salvar dados. Tente novamente.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
   }
 };
 

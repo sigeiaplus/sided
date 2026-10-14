@@ -590,6 +590,10 @@ async function salvarChamada() {
   const tri = detectarTrimestreAtual().tri;
   if (await verificarBloqueio(tri)) return;
   const aulaId = wrap._aulaId;
+  if (!aulaId || !alunosTurma.length) {
+    if (typeof mostrarErro === 'function') mostrarErro('Não foi possível salvar: confira se a aula e os alunos estão carregados.');
+    return;
+  }
   const aulaAtual = aulasTurma.find(a => a.id === aulaId);
   const rows = alunosTurma.map(a => _linhaChamadaAluno(aulaId, a));
 

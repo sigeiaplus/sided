@@ -47,7 +47,10 @@ const api = async (path, opts = {}) => {
 
   if (dedupavel) {
     _emVoo[chave] = promessa;
-    promessa.finally(() => { delete _emVoo[chave]; });
+    promessa.then(
+      () => { delete _emVoo[chave]; },
+      () => { delete _emVoo[chave]; }
+    );
   }
 
   return promessa;

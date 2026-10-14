@@ -164,6 +164,11 @@ function renderRelatorio(dados, avalTri) {
       </td>
       <td style="color:${r.faltas>0?'#C0392B':'var(--text-muted)'};">${r.faltas}</td>
     </tr>`).join('');
+
+  if (!_relatorioModoAplicado) {
+    _relatorioModoAplicado = true;
+    toggleRelatorioModo(window.matchMedia('(max-width: 768px)').matches ? 'grade' : 'lista');
+  }
 }
 
 function ordenarRelatorio(modo) {
@@ -273,6 +278,7 @@ async function abrirAlertasRisco(event) {
 
 // ── TOGGLE LISTA/GRADE RELATÓRIO ─────────────────────────────────────────────
 let _relatorioModo = 'lista';
+let _relatorioModoAplicado = false;
 
 function toggleRelatorioModo(modo) {
   _relatorioModo = modo;
