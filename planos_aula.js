@@ -128,6 +128,8 @@
   .pa .pa-doc h2{font-size:18px;margin:0 0 14px;text-align:center}
   .pa .pa-doc p{margin:0 0 6px;white-space:pre-wrap}
   .pa .pa-gap{height:10px}
+  .pa .pa-docxbox{overflow:auto;border:1.5px solid var(--border,#DBE4FF);border-radius:14px;background:#F1F3F9;padding:12px;margin-bottom:14px}
+  .pa .pa-docxbox .docx-wrapper{background:transparent!important;padding:0!important}
   .pa .pa-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1B2550;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:9999;max-width:90%}
   .pa .pa-aviso{background:#FEF3C7;border:1px solid #FDE68A;color:#92400E;border-radius:10px;padding:10px 14px;font-size:12px;margin-bottom:14px}
   @media(max-width:600px){.pa .pa-doc{padding:18px}.pa-body{padding:16px 12px 60px}}`;
@@ -238,12 +240,14 @@
     function viewPlano(p) {
       app.innerHTML = `<div class="pa-row pa-between"><button class="pa-btn sm" id="pa-lst">← Meus planos</button></div>
         <h3>${esc(p.tema || 'Plano de aula')}</h3><div class="pa-sub">Atualizado em ${esc(dt(p.atualizado_em))}</div>
-        <div class="pa-doc">${C.textoParaHtml(p.texto_final)}</div>
+        ${p.modelo_arquivo_path ? '<div class="pa-docxbox" id="pa-docx"><div class="pa-sub">Carregando o modelo preenchido…</div></div>' : ''}
+        <div class="pa-doc" id="pa-doctexto"${p.modelo_arquivo_path ? ' hidden' : ''}>${C.textoParaHtml(p.texto_final)}</div>
         <div class="pa-row" data-id="${esc(p.id)}">
           <button class="pa-btn" data-a="editar">Editar</button><button class="pa-btn" data-a="clonar">Clonar</button>
           <button class="pa-btn" data-a="pdf">Exportar PDF</button><button class="pa-btn" data-a="docx">Exportar DOCX</button>
           <button class="pa-btn dng" data-a="excluir">Excluir</button></div>`;
       app.querySelector('#pa-lst').onclick = viewLista;
+      if (p.modelo_arquivo_path) mostrarModeloPreenchido(p);
       app.querySelector('[data-id]').addEventListener('click', ev => {
         const a = ev.target.dataset && ev.target.dataset.a; if (!a) return;
         if (a === 'pdf') exportarPdf(p);
@@ -255,9 +259,49 @@
     }
 
     /* ═════════ EXPORTAÇÃO ═════════ */
-    // PDF: abre a versão formatada na impressão do navegador ("Salvar como PDF"). Sem biblioteca extra.
-    function exportarPdf(p) {
+    /** Bytes do .docx do modelo original com as variáveis preenchidas (o modelo guardado nunca é alterado). */
+    async function docxPreenchido(p) {
+      const r = await fetch(urlPublica(p.modelo_arquivo_path), { cache: 'no-store' });
+      if (!r.ok) throw new Error('arquivo do modelo não encontrado (HTTP ' + r.status + ')');
+      return C.preencherDocx(await r.arrayBuffer(), montarValores(p));
+    }
+
+    // Mostra, no lugar do texto, o próprio modelo preenchido (mesmo timbre, tabela e logos). Se falhar, mantém o texto.
+    async function mostrarModeloPreenchido(p) {
+      const box = app.querySelector('#pa-docx'), txt = app.querySelector('#pa-doctexto');
+      try {
+        const bytes = await docxPreenchido(p);
+        if (!box || !box.isConnected) return;
+        await C.renderizarDocx(bytes, box);
+      } catch (e) {
+        if (box && box.isConnected) box.remove();
+        if (txt) txt.hidden = false;
+        toast('Não foi possível exibir o modelo .docx; mostrando a versão em texto. (' + e.message + ')');
+      }
+    }
+
+    // PDF: com modelo .docx, imprime o próprio modelo preenchido (nada é redesenhado); sem modelo, imprime o texto.
+    async function exportarPdf(p) {
       const w = window.open('', '_blank'); if (!w) return toast('Permita pop-ups para exportar o PDF.');
+      w.document.write('<!DOCTYPE html><meta charset="utf-8"><title>Gerando PDF…</title><body style="font-family:Arial;padding:24px">Gerando PDF…</body>');
+      if (p.modelo_arquivo_path) {
+        try {
+          const bytes = await docxPreenchido(p);
+          const tmp = document.createElement('div');
+          tmp.style.cssText = 'position:fixed;left:-99999px;top:0;width:900px';
+          document.body.appendChild(tmp);
+          try { await C.renderizarDocx(bytes, tmp); } catch (e) { tmp.remove(); throw e; }
+          const html = tmp.innerHTML; tmp.remove();
+          w.document.open();
+          w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(p.tema || 'Plano de aula')}</title>
+            <style>@page{size:A4;margin:0}html,body{margin:0;background:#fff}
+            .docx-wrapper{background:none!important;padding:0!important}
+            .docx-wrapper>section.docx{box-shadow:none!important;margin:0!important}</style></head><body>${html}</body></html>`);
+          w.document.close(); w.focus(); setTimeout(() => w.print(), 400);
+          return;
+        } catch (e) { toast('Modelo .docx indisponível para o PDF; usando a versão em texto. (' + e.message + ')'); }
+      }
+      w.document.open();
       w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(p.tema || 'Plano de aula')}</title>
         <style>@page{size:A4;margin:20mm}body{font-family:Arial,sans-serif;font-size:13px;line-height:1.55;color:#000}
         h2{text-align:center;font-size:18px;margin:0 0 16px}p{margin:0 0 6px;white-space:pre-wrap}.pa-gap{height:10px}</style></head>
@@ -272,9 +316,7 @@
         let bytes = null;
         if (p.modelo_arquivo_path) {
           try {
-            const r = await fetch(urlPublica(p.modelo_arquivo_path), { cache: 'no-store' });
-            if (!r.ok) throw new Error('arquivo não encontrado (HTTP ' + r.status + ')');
-            bytes = await C.preencherDocx(await r.arrayBuffer(), montarValores(p)); // modelo original intacto
+            bytes = await docxPreenchido(p); // modelo original intacto
           } catch (e) { toast('Modelo .docx indisponível; gerando versão simples. (' + e.message + ')'); }
         }
         if (!bytes) bytes = await C.gerarDocx(p.texto_final);

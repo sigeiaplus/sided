@@ -13,7 +13,8 @@
   'use strict';
 
   /* ── texto ── */
-  const RE_VAR = /\[([a-zA-Z_][a-zA-Z0-9_]*)\]/g;
+  const RE_VAR = /\[([a-zA-Z_][a-zA-Z0-9_]*(?:\/\d+)?)\]/g;   // aceita [data/2] como apelido de [data_2]
+  const chave = n => String(n).replace('/', '_');
   const esc = s => String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -23,7 +24,7 @@
 
   function parseVariaveis(texto) {
     const vistos = new Set(), lista = [];
-    String(texto || '').replace(RE_VAR, (m, n) => { if (!vistos.has(n)) { vistos.add(n); lista.push(n); } return m; });
+    String(texto || '').replace(RE_VAR, (m, n) => { n = chave(n); if (!vistos.has(n)) { vistos.add(n); lista.push(n); } return m; });
     return lista;
   }
 
@@ -33,10 +34,10 @@
     const umaData = !vazio(v.data_1) && vazio(v.data_2);
     const saida = [];
     for (let linha of String(modelo).split('\n')) {
-      if (umaData) linha = linha.replace(/\[data_1\]\s*à\s*\[data_2\]/g, '[data_1]');
-      const vars = (linha.match(RE_VAR) || []).map(m => m.slice(1, -1));
+      if (umaData) linha = linha.replace(/\[data_1\]\s*à\s*\[data[_/]2\]/g, '[data_1]');
+      const vars = (linha.match(RE_VAR) || []).map(m => chave(m.slice(1, -1)));
       if (vars.length && vars.every(n => vazio(v[n]))) continue;
-      saida.push(linha.replace(RE_VAR, (m, n) => (vazio(v[n]) ? '' : String(v[n]).trim())).replace(/[ \t]+$/, ''));
+      saida.push(linha.replace(RE_VAR, (m, n) => (vazio(v[chave(n)]) ? '' : String(v[chave(n)]).trim())).replace(/[ \t]+$/, ''));
     }
     return saida.join('\n').replace(/\n{3,}/g, '\n\n').trim();
   }
@@ -84,9 +85,9 @@
       p.replace(RE_T, (m, t) => { nos.push(unx(t)); return m; });
       const full = nos.join('');
       if (full.indexOf('[') < 0) return p;
-      const re = umaData ? /\[data_1\]\s*à\s*\[data_2\]|\[([a-zA-Z_]\w*)\]/g : /\[([a-zA-Z_]\w*)\]/g;
+      const re = umaData ? /\[data_1\]\s*à\s*\[data[_/]2\]|\[([a-zA-Z_]\w*(?:\/\d+)?)\]/g : /\[([a-zA-Z_]\w*(?:\/\d+)?)\]/g;
       const ms = []; let m;
-      while ((m = re.exec(full))) ms.push({ s: m.index, e: m.index + m[0].length, nome: m[1] || 'data_1' });
+      while ((m = re.exec(full))) ms.push({ s: m.index, e: m.index + m[0].length, nome: m[1] ? chave(m[1]) : 'data_1' });
       if (!ms.length) return p;
       if (ms.every(x => vazio(v[x.nome]))) return '';
       const car = full.split('');
@@ -141,6 +142,32 @@
     return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
   }
 
+
+  /* ── Visualização fiel do .docx preenchido (docx-preview): mostra o próprio modelo, não um texto refeito ── */
+  let _dp = null;
+  function carregarDocxPreview() {
+    if (g.docx && g.docx.renderAsync) return Promise.resolve(g.docx);
+    if (_dp) return _dp;
+    _dp = carregarJSZip().then(() => new Promise((ok, falha) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/docx-preview@0.3.5/dist/docx-preview.min.js';
+      s.onload = () => (g.docx && g.docx.renderAsync ? ok(g.docx) : falha(new Error('docx-preview não carregou')));
+      s.onerror = () => falha(new Error('Não foi possível carregar o visualizador de .docx (verifique a conexão).'));
+      document.head.appendChild(s);
+    })).catch(e => { _dp = null; throw e; });
+    return _dp;
+  }
+
+  /** Desenha os bytes de um .docx dentro de um elemento, com as páginas do modelo (logos, tabelas, cabeçalho). */
+  async function renderizarDocx(bytes, container) {
+    const D = await carregarDocxPreview();
+    container.innerHTML = '';
+    await D.renderAsync(bytes, container, container, {
+      className: 'docx', inWrapper: true, ignoreWidth: false, ignoreHeight: false,
+      breakPages: true, useBase64URL: true, renderHeaders: true, renderFooters: true
+    });
+  }
+
   /** DOCX simples a partir do texto final (para planos sem arquivo de modelo). */
   async function gerarDocx(texto) {
     const Z = await carregarJSZip();
@@ -166,6 +193,6 @@
 
   g.PlanoCore = {
     esc, norm, fmtData, vazio, parseVariaveis, renderizar, textoParaHtml,
-    textoDoXml, substituirXml, lerDocx, preencherDocx, gerarDocx, carregarJSZip
+    textoDoXml, substituirXml, lerDocx, preencherDocx, gerarDocx, carregarJSZip, carregarDocxPreview, renderizarDocx
   };
 })(typeof window !== 'undefined' ? window : globalThis);
