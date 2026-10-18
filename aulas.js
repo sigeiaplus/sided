@@ -189,157 +189,137 @@ function filtrarAulasTri(el) {
   atualizarContadorAulas();
 }
 
-function renderListaAulas() {
-  let lista = [...aulasTurma];
+const _NOMES_TRI_AULA = { 1: '1º Tri', 2: '2º Tri', 3: '3º Tri' };
+const _DIAS_SEMANA_AULA = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
 
-  if (aulasTriFiltro && aulasTriFiltro !== 'todos') {
-    lista = lista.filter(a => trimestreDeAula(a.data) === parseInt(aulasTriFiltro));
-  }
-  if (aulasTipoFiltro && aulasTipoFiltro !== 'todos') {
-    lista = lista.filter(a => {
-      const tc = chamadaCacheGet(a.id);
-      const se = a.status === 'futura' ? 'futura'
-        : tc === true ? 'lecionada'
-        : tc === false ? 'pendente'
-        : a.status;
-      return se === aulasTipoFiltro;
-    });
-  }
-  if (aulasDiscFiltro) {
-    lista = lista.filter(a => a.disciplina === aulasDiscFiltro);
-  }
+function _escAulaTxt(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Status efetivo da aula (a chamada lançada tem prioridade sobre o status gravado)
+function _statusEfetivoAula(a) {
+  const tc = chamadaCacheGet(a.id);
+  return a.status === 'futura' ? 'futura'
+    : tc === true ? 'lecionada'
+    : tc === false ? 'pendente'
+    : a.status;
+}
+
+// Filtros ativos da tela de aulas (trimestre, tipo, disciplina, dia da semana).
+// Continuam valendo para os cards exibidos ao lado do calendário.
+function _aulaPassaFiltros(a) {
+  if (aulasTriFiltro && aulasTriFiltro !== 'todos' && trimestreDeAula(a.data) !== parseInt(aulasTriFiltro)) return false;
+  if (aulasTipoFiltro && aulasTipoFiltro !== 'todos' && _statusEfetivoAula(a) !== aulasTipoFiltro) return false;
+  if (aulasDiscFiltro && a.disciplina !== aulasDiscFiltro) return false;
   if (aulasDiaSemFiltro !== null) {
-    lista = lista.filter(a => {
-      const iso = dataAulaOnly(a.data);
-      if (!iso) return false;
-      return new Date(iso + 'T12:00:00').getDay() === aulasDiaSemFiltro;
-    });
-  }
-
-  lista.sort((a, b) => {
-    const da = dataAulaOnly(a.data), db = dataAulaOnly(b.data);
-    if (da < db) return aulasOrdemDesc ? 1 : -1;
-    if (da > db) return aulasOrdemDesc ? -1 : 1;
-    return 0;
-  });
-
-  const nomesTri = {1:'1º Tri', 2:'2º Tri', 3:'3º Tri'};
-  const diasSem = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
-
-  function _card(a) {
-    const tri = trimestreDeAula(a.data);
-    const triBadge = tri ? `<span style="font-size:10px;font-weight:700;color:var(--orange);background:#FFF0E6;padding:2px 7px;border-radius:20px;">${nomesTri[tri]}</span>` : '';
-    const temChamada = chamadaCacheGet(a.id);
-    const temChamadaEfetivo = temChamada === true;
-    const chamadaTag = a.status === 'futura'
-      ? ''
-      : temChamadaEfetivo
-      ? `<span style="font-size:10px;font-weight:700;color:#166534;background:#DCFCE7;padding:2px 8px;border-radius:20px;display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Chamada lançada</span>`
-      : `<span style="font-size:10px;font-weight:700;color:#92400E;background:#FEF3C7;padding:2px 8px;border-radius:20px;display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Chamada pendente</span>`;
-
     const iso = dataAulaOnly(a.data);
-    let diaSem = '', dataFmt = formatarData(a.data);
-    if (iso) {
-      const d = new Date(iso + 'T12:00:00');
-      diaSem = diasSem[d.getDay()] || '';
-    }
+    if (!iso) return false;
+    if (new Date(iso + 'T12:00:00').getDay() !== aulasDiaSemFiltro) return false;
+  }
+  return true;
+}
 
-    const badgeCfg = {
-      pendente:  { bg:'#FF8C38', label:'Chamada pendente' },
-      lecionada: { bg:'#22C55E', label:'Frequência registrada' },
-      futura:    { bg:'#3B82F6', label:'Aula futura' },
-    };
-    const statusEfetivo = a.status === 'futura' ? 'futura'
-      : temChamada === true ? 'lecionada'
-      : temChamada === false ? 'pendente'
-      : a.status;
-    const bc = badgeCfg[statusEfetivo] || { bg:'#9A8FC0', label: statusEfetivo };
+// Card comum de aula (único padrão do sistema). Com { detalhado: true } acrescenta
+// componente curricular, turma, descrição/conteúdo completos e habilidades BNCC.
+function _aulaCardHtml(a, opts = {}) {
+  const detalhado = !!opts.detalhado;
+  const tri = trimestreDeAula(a.data);
+  const triBadge = tri ? `<span style="font-size:10px;font-weight:700;color:var(--orange);background:#FFF0E6;padding:2px 7px;border-radius:20px;">${_NOMES_TRI_AULA[tri]}</span>` : '';
+  const temChamada = chamadaCacheGet(a.id);
+  const temChamadaEfetivo = temChamada === true;
+  const chamadaTag = a.status === 'futura'
+    ? ''
+    : temChamadaEfetivo
+    ? `<span style="font-size:10px;font-weight:700;color:#166534;background:#DCFCE7;padding:2px 8px;border-radius:20px;display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Chamada lançada</span>`
+    : `<span style="font-size:10px;font-weight:700;color:#92400E;background:#FEF3C7;padding:2px 8px;border-radius:20px;display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Chamada pendente</span>`;
 
-    const selecionada = aulasSelecionadas.has(a.id);
-    const checkboxHtml = modoSelecaoAulas ? `
-      <div onclick="event.stopPropagation();toggleSelecaoAula('${a.id}')"
-        style="width:22px;height:22px;border-radius:6px;border:2px solid ${selecionada ? 'var(--purple)' : 'var(--border)'};background:${selecionada ? 'var(--purple)' : 'var(--white)'};flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-        ${selecionada ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
-      </div>` : '';
+  const iso = dataAulaOnly(a.data);
+  let diaSem = '', dataFmt = formatarData(a.data);
+  if (iso) {
+    const d = new Date(iso + 'T12:00:00');
+    diaSem = _DIAS_SEMANA_AULA[d.getDay()] || '';
+  }
 
-    const acoesBtns = modoSelecaoAulas ? '' : `
-      <div class="aula-actions" onclick="event.stopPropagation()" style="display:flex;gap:5px;align-items:center;flex-shrink:0;">
-        <button class="btn-icon" onclick="event.stopPropagation();editarAula('${a.id}')" title="Editar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        </button>
-        <button class="btn-icon" onclick="event.stopPropagation();duplicarAula('${a.id}')" title="Copiar para outra turma">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-        </button>
-        <button class="btn-icon" onclick="event.stopPropagation();exportarAulaPDF('${a.id}')" title="Exportar em PDF" style="color:#7C3AED;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        </button>
-        <button class="btn-icon" onclick="event.stopPropagation();window.abrirModalTransferirAulas('${a.id}')" title="Transferir para outro professor" style="color:#0F766E;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-        </button>
-        <button class="btn-icon danger" onclick="event.stopPropagation();excluirAula('${a.id}')" title="Excluir">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-        </button>
+  const badgeCfg = {
+    pendente:  { bg:'#FF8C38', label:'Chamada pendente' },
+    lecionada: { bg:'#22C55E', label:'Frequência registrada' },
+    futura:    { bg:'#3B82F6', label:'Aula futura' },
+  };
+  const statusEfetivo = _statusEfetivoAula(a);
+  const bc = badgeCfg[statusEfetivo] || { bg:'#9A8FC0', label: statusEfetivo };
+
+  const selecionada = aulasSelecionadas.has(a.id);
+  const checkboxHtml = modoSelecaoAulas ? `
+    <div onclick="event.stopPropagation();toggleSelecaoAula('${a.id}')"
+      style="width:22px;height:22px;border-radius:6px;border:2px solid ${selecionada ? 'var(--purple)' : 'var(--border)'};background:${selecionada ? 'var(--purple)' : 'var(--white)'};flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+      ${selecionada ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+    </div>` : '';
+
+  const acoesBtns = modoSelecaoAulas ? '' : `
+    <div class="aula-actions" onclick="event.stopPropagation()" style="display:flex;gap:5px;align-items:center;flex-shrink:0;">
+      <button class="btn-icon" onclick="event.stopPropagation();editarAula('${a.id}')" title="Editar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+      <button class="btn-icon" onclick="event.stopPropagation();duplicarAula('${a.id}')" title="Copiar para outra turma">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      </button>
+      <button class="btn-icon" onclick="event.stopPropagation();exportarAulaPDF('${a.id}')" title="Exportar em PDF" style="color:#7C3AED;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
+      <button class="btn-icon" onclick="event.stopPropagation();window.abrirModalTransferirAulas('${a.id}')" title="Transferir para outro professor" style="color:#0F766E;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </button>
+      <button class="btn-icon danger" onclick="event.stopPropagation();excluirAula('${a.id}')" title="Excluir">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+      </button>
+    </div>`;
+
+  // Informações completas do cadastro da aula (somente no card exibido ao lado do calendário)
+  let detalhesHtml = '';
+  if (detalhado) {
+    const componente = a.disciplina || turmaDisciplinaAtiva?.disciplinas?.nome || '';
+    const turmaNome = turmaAtiva?.nome || '';
+    const descricao = String(a.descricao || '').trim();
+    const bncc = (typeof _habilidadesTextoPorAula !== 'undefined' && _habilidadesTextoPorAula[a.id]) || a.habilidade_bncc || '';
+    const meta = [
+      componente ? `<span><b>Componente:</b> ${_escAulaTxt(componente)}</span>` : '',
+      turmaNome ? `<span><b>Turma:</b> ${_escAulaTxt(turmaNome)}</span>` : '',
+    ].filter(Boolean).join('');
+    detalhesHtml = `
+      <div class="aula-card-detalhes" style="margin-top:8px;display:flex;flex-direction:column;gap:5px;">
+        ${meta ? `<div style="font-size:11px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:2px 14px;">${meta}</div>` : ''}
+        ${descricao ? `<div style="font-size:12px;color:var(--text);line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;"><b style="color:var(--text-muted);font-size:11px;">Descrição:</b> ${_escAulaTxt(descricao)}</div>` : ''}
+        ${bncc ? `<div style="font-size:11px;color:var(--text-muted);line-height:1.5;overflow-wrap:anywhere;"><b>Habilidades BNCC:</b> ${_escAulaTxt(bncc)}</div>` : ''}
       </div>`;
-
-    const cardClick = modoSelecaoAulas ? `onclick="toggleSelecaoAula('${a.id}')"` : `onclick="abrirChamadaDeAula('${a.id}')"`;
-
-    return `<div class="aula-card${selecionada ? ' selecionada' : ''}" ${cardClick}
-      style="background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all 0.15s;margin-bottom:8px;${selecionada ? 'border-color:var(--purple);background:#F8F6FF;' : ''}">
-      ${checkboxHtml}
-      <div class="aula-card-info" style="flex:1;min-width:0;">
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">${diaSem}</div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <span style="font-size:14px;font-weight:700;color:var(--text);">${dataFmt}</span>
-          <span style="font-size:13px;color:var(--purple);font-weight:600;">${a.nome}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
-          ${triBadge}${chamadaTag}
-        </div>
-      </div>
-      <span class="aula-card-status" style="background:${bc.bg};color:#fff;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${bc.label}</span>
-      ${acoesBtns}
-    </div>`;
   }
 
-  const grupos = { pendente: [], lecionada: [], futura: [] };
-  lista.forEach(a => {
-    const temChamada = chamadaCacheGet(a.id);
-    const statusEfetivo = a.status === 'futura' ? 'futura'
-      : temChamada === true ? 'lecionada'
-      : temChamada === false ? 'pendente'
-      : a.status;
-    if (grupos[statusEfetivo]) grupos[statusEfetivo].push(a);
-    else grupos['futura'].push(a);
-  });
+  const cardClick = modoSelecaoAulas ? `onclick="toggleSelecaoAula('${a.id}')"` : `onclick="abrirChamadaDeAula('${a.id}')"`;
 
-  const titulosGrupo = { pendente: 'Aulas pendentes', lecionada: 'Aulas lecionadas', futura: 'Aulas futuras' };
-  const coresGrupo = { pendente: '#F59E0B', lecionada: '#22C55E', futura: '#3B82F6' };
-
-  let html = '';
-  const tiposFiltrados = (aulasTipoFiltro !== 'todos') ? [aulasTipoFiltro] : ['pendente','lecionada','futura'];
-
-  tiposFiltrados.forEach(tipo => {
-    const grupo = grupos[tipo] || [];
-    if (grupo.length === 0) return;
-    html += `<div style="margin-bottom:20px;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <div style="width:10px;height:10px;border-radius:50%;background:${coresGrupo[tipo]};flex-shrink:0;"></div>
-        <span style="font-size:13px;font-weight:700;color:var(--text);">${titulosGrupo[tipo]}</span>
-        <span style="font-size:11px;color:var(--text-muted);font-weight:600;">(${grupo.length})</span>
-        <div style="flex:1;height:1px;background:var(--border);"></div>
+  return `<div class="aula-card${detalhado ? ' aula-card-cal' : ''}${selecionada ? ' selecionada' : ''}" ${cardClick}
+    style="background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all 0.15s;margin-bottom:8px;${selecionada ? 'border-color:var(--purple);background:#F8F6FF;' : ''}">
+    ${checkboxHtml}
+    <div class="aula-card-info" style="flex:1;min-width:0;">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">${diaSem}</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:14px;font-weight:700;color:var(--text);">${dataFmt}</span>
+        <span style="font-size:13px;color:var(--purple);font-weight:600;overflow-wrap:anywhere;">${a.nome}</span>
       </div>
-      ${grupo.map(a => _card(a)).join('')}
-    </div>`;
-  });
+      <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
+        ${triBadge}${chamadaTag}
+      </div>
+      ${detalhesHtml}
+    </div>
+    <span class="aula-card-status" style="background:${bc.bg};color:#fff;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${bc.label}</span>
+    ${acoesBtns}
+  </div>`;
+}
 
-  if (!html) {
-    html = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="margin-bottom:12px;opacity:0.4;display:block;margin-inline:auto;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      Nenhuma aula encontrada com esse filtro.
-    </div>`;
-  }
-
-  document.getElementById('aulas-list').innerHTML = html;
+// A listagem de aulas é exibida somente ao lado do calendário (cards das datas
+// selecionadas). Esta função segue como ponto único de atualização, chamado por
+// filtros, seleção, criação, edição e exclusão.
+function renderListaAulas() {
+  _renderPainelAulasCal();
+  Promise.resolve(renderCalendarioAulas()).catch(e => console.error('[AULAS] Erro ao renderizar calendário:', e));
 }
 
 function toggleModoSelecao() {
@@ -600,27 +580,26 @@ function setLayoutAulas(modo) {
   renderListaAulas();
 }
 
-const _renderListaAulasOriginal = renderListaAulas;
-renderListaAulas = function() {
-  _renderListaAulasOriginal();
-  if (_layoutAulas === 'grade') _aplicarLayoutGradeAulas();
-};
-
+// Aplica a visualização em grade aos cards exibidos ao lado do calendário.
+// Chamada ao final de cada render do painel (_renderPainelAulasCal / calAulasBuscar).
 function _aplicarLayoutGradeAulas() {
-  const el = document.getElementById('aulas-list');
+  const el = document.getElementById('cal-aulas-dia-lista');
   if (!el) return;
-  el.querySelectorAll('.aula-card').forEach(card => {
-    const parent = card.parentElement;
-    if (parent && !parent.dataset.gradeAplicada) {
-      parent.style.display = 'grid';
-      parent.style.gridTemplateColumns = 'repeat(auto-fill, minmax(220px, 1fr))';
-      parent.style.gap = '10px';
-      parent.dataset.gradeAplicada = '1';
+  el.querySelectorAll('.cal-aulas-cards').forEach(wrap => {
+    if (_layoutAulas === 'grade') {
+      wrap.style.display = 'grid';
+      wrap.style.gridTemplateColumns = 'repeat(auto-fill, minmax(260px, 1fr))';
+      wrap.style.gap = '10px';
     }
-    card.style.flexDirection = 'column';
-    card.style.alignItems = 'flex-start';
-    card.style.minHeight = '110px';
   });
+  if (_layoutAulas === 'grade') {
+    el.querySelectorAll('.aula-card').forEach(card => {
+      card.style.flexDirection = 'column';
+      card.style.alignItems = 'flex-start';
+      card.style.minHeight = '110px';
+      card.style.marginBottom = '0';
+    });
+  }
 }
 
 // ══════════════════════════════════════════
@@ -686,6 +665,24 @@ window.editarAula = function(aulaId) {
       if (res && res[0]) abrirModalAula(res[0]);
     });
   }
+};
+
+// Excluir uma aula pelo card (usado pelos cards ao lado do calendário)
+window.excluirAula = async function(id) {
+  if (!confirm('Excluir esta aula?')) return;
+  try {
+    await api(`aulas?id=eq.${id}`, { method: 'DELETE' });
+  } catch (e) {
+    console.error('[AULAS] Erro ao excluir aula:', e);
+    alert('Não foi possível excluir a aula. Tente novamente.');
+    return;
+  }
+  window.aulasTurma = aulasTurma = aulasTurma.filter(a => String(a.id) !== String(id));
+  delete _chamadaCache[id];
+  cacheSalvar(turmaAtiva.id, 'aulas', aulasTurma);
+  renderListaAulas();
+  atualizarContadorAulas();
+  atualizarCalendario('cal-aula');
 };
 
 // Garante que todasTurmas está preenchido (recarrega se vazio)
@@ -875,6 +872,7 @@ window.salvarAula = async function() {
       chamadaCacheSet(nova.id, false);
     }
     await _salvarVinculosHabilidadesAula(aulaId, _habilidadesAulaSelecionadas);
+    await _carregarHabilidadesTextoPorAula(); // cards ao lado do calendário refletem as habilidades editadas
     cacheSalvar(turmaAtiva.id, 'aulas', aulasTurma);
     fecharModal('modal-aula');
     renderListaAulas();
@@ -1682,9 +1680,15 @@ function _inicializarItemImportarMenu(menu) {
 // CALENDÁRIO LATERAL DE AULAS — filtro visual + busca + criação de aula
 // ═══════════════════════════════════════════════════════════════════════════
 let _calAulasRef = new Date();
-let _calAulasDiaSel = null;      // 'YYYY-MM-DD' do dia clicado no calendário
+let _calAulasDatasSel = [];      // datas 'YYYY-MM-DD' selecionadas no calendário (sem limite)
+let _calAulasDiaSel = null;      // última data selecionada/adicionada (padrão p/ nova aula)
+let _calAulasInicializado = false; // seleção inicial (hoje) aplicada uma única vez
 let _calAulasDatasNovaAula = []; // datas marcadas p/ criar aula, quando painel aberto
 let _calAulasModo = 'mesmo';     // 'mesmo' | 'individual'
+let _calAulasCliqueTimer = null; // aguarda um possível 2º clique rápido na mesma data
+let _calAulasCliqueIso = null;
+const _CAL_AULAS_DUPLO_CLIQUE_MS = 280;
+let _calAulasFeriadosEscola = null; // escola cujo calendário escolar já foi consultado
 
 const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
@@ -1716,11 +1720,12 @@ async function renderCalendarioAulas() {
   const label = document.getElementById('cal-aulas-mes-ano');
   if (!grid || !label) return;
 
-  // Garante que o calendário escolar (feriados/recessos) esteja carregado
+  // Garante que o calendário escolar (feriados/recessos) esteja carregado (uma consulta por escola)
   if (!feriadosCache.length) {
     const profData = JSON.parse(sessionStorage.getItem('prof_data') || '{}');
     const escolaId = profData.escolas?.id || profData.escola_id;
-    if (escolaId) {
+    if (escolaId && _calAulasFeriadosEscola !== escolaId) {
+      _calAulasFeriadosEscola = escolaId;
       feriadosCache = await api(`calendario_escolar?escola_id=eq.${escolaId}&select=*`) || [];
     }
   }
@@ -1742,7 +1747,7 @@ async function renderCalendarioAulas() {
   for (let dia = 1; dia <= totalDias; dia++) {
     const iso = `${ano}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
     const st = statusPorData[iso];
-    const selecionado = _calAulasDiaSel === iso;
+    const selecionado = _calAulasDatasSel.includes(iso);
     const marcado = _calAulasDatasNovaAula.includes(iso);
     const evento = _calAulasEventoDoDia(iso);
     let bg = 'transparent', color = 'var(--text)', titulo = '';
@@ -1753,8 +1758,8 @@ async function renderCalendarioAulas() {
     else if (evento?.tipo === 'feriado_municipal' || evento?.tipo === 'feriado_estadual') { bg = '#FEE2E2'; color = '#DC2626'; titulo = `Feriado — ${evento.descricao || ''}`; }
     let outline = '';
     if (marcado) outline = 'outline:2px solid var(--purple);outline-offset:-1px;';
-    else if (selecionado) outline = 'box-shadow:0 0 0 1.5px var(--purple);';
-    html += `<span onclick="calAulasClicarDia('${iso}')" title="${escHtmlAttr(titulo)}" style="cursor:pointer;font-size:11px;font-weight:600;padding:5px 0;border-radius:50%;background:${bg};color:${color};${outline}">${dia}</span>`;
+    else if (selecionado) outline = 'box-shadow:0 0 0 2px var(--purple);font-weight:800;';
+    html += `<span class="cal-aulas-dia" aria-pressed="${selecionado}" onclick="calAulasClicarDia('${iso}')" title="${escHtmlAttr(titulo)}" style="cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;font-size:11px;font-weight:600;padding:5px 0;border-radius:50%;background:${bg};color:${color};${outline}">${dia}</span>`;
   }
 
   grid.innerHTML = html;
@@ -1769,6 +1774,8 @@ function calAulasMudarMes(delta) {
   renderCalendarioAulas();
 }
 
+// Clique simples: seleciona somente a data. Dois cliques rápidos na mesma data:
+// adiciona à seleção (ou remove, se já estava selecionada). Sem limite de datas.
 function calAulasClicarDia(iso) {
   const painelAberto = document.getElementById('painel-nova-aula-cal')?.style.display === 'flex';
   if (painelAberto) {
@@ -1779,11 +1786,72 @@ function calAulasClicarDia(iso) {
     renderCalendarioAulas();
     _renderChipsNovaAulaCal();
     _renderFormNovaAulaCal();
-  } else {
-    _calAulasDiaSel = iso;
-    renderCalendarioAulas();
-    _renderListaDiaCal(iso);
+    return;
   }
+
+  if (_calAulasCliqueTimer && _calAulasCliqueIso === iso) {
+    // 2º clique rápido na mesma data
+    clearTimeout(_calAulasCliqueTimer);
+    _calAulasCliqueTimer = null;
+    _calAulasCliqueIso = null;
+    calAulasAlternarData(iso);
+    return;
+  }
+
+  if (_calAulasCliqueTimer) {
+    // Clique em outra data antes do prazo: conclui o clique simples pendente
+    clearTimeout(_calAulasCliqueTimer);
+    const pendente = _calAulasCliqueIso;
+    _calAulasCliqueTimer = null;
+    _calAulasCliqueIso = null;
+    calAulasSelecionarUnica(pendente);
+  }
+
+  _calAulasCliqueIso = iso;
+  _calAulasCliqueTimer = setTimeout(() => {
+    const d = _calAulasCliqueIso;
+    _calAulasCliqueTimer = null;
+    _calAulasCliqueIso = null;
+    calAulasSelecionarUnica(d);
+  }, _CAL_AULAS_DUPLO_CLIQUE_MS);
+}
+
+function _calAulasAtualizarSelecao() {
+  _calAulasDatasSel.sort();
+  _calAulasDiaSel = _calAulasDatasSel.includes(_calAulasDiaSel)
+    ? _calAulasDiaSel
+    : (_calAulasDatasSel[_calAulasDatasSel.length - 1] || null);
+  renderCalendarioAulas();
+  _renderPainelAulasCal();
+}
+
+function calAulasSelecionarUnica(iso) {
+  _calAulasDatasSel = [iso];
+  _calAulasDiaSel = iso;
+  _calAulasAtualizarSelecao();
+}
+
+function calAulasAlternarData(iso) {
+  const idx = _calAulasDatasSel.indexOf(iso);
+  if (idx === -1) {
+    _calAulasDatasSel.push(iso);
+    _calAulasDiaSel = iso;
+  } else {
+    _calAulasDatasSel.splice(idx, 1);
+  }
+  _calAulasAtualizarSelecao();
+}
+
+function calAulasRemoverData(iso) {
+  const idx = _calAulasDatasSel.indexOf(iso);
+  if (idx !== -1) _calAulasDatasSel.splice(idx, 1);
+  _calAulasAtualizarSelecao();
+}
+
+function calAulasLimparSelecao() {
+  _calAulasDatasSel = [];
+  _calAulasDiaSel = null;
+  _calAulasAtualizarSelecao();
 }
 
 function _formatarDataLabel(iso) {
@@ -1791,43 +1859,81 @@ function _formatarDataLabel(iso) {
   return `${parseInt(dia)} de ${MESES_PT[parseInt(mes)-1].toLowerCase()}`;
 }
 
-function _renderListaDiaCal(iso) {
+// Chips das datas selecionadas (2 ou mais), com opção de desmarcar cada uma
+function _renderChipsDatasSelCal() {
+  const wrap = document.getElementById('cal-aulas-datas-sel');
+  if (!wrap) return;
+  const datas = [..._calAulasDatasSel].sort();
+  if (datas.length < 2) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  wrap.style.display = 'flex';
+  wrap.innerHTML = datas.map(iso => `
+    <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 4px 3px 10px;border-radius:20px;background:#EDE8FF;color:var(--purple);">
+      ${formatarData(iso)}
+      <button type="button" onclick="calAulasRemoverData('${iso}')" title="Desmarcar ${formatarData(iso)}" aria-label="Desmarcar ${formatarData(iso)}"
+        style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:none;background:rgba(108,79,212,0.15);color:var(--purple);font-size:12px;line-height:1;cursor:pointer;padding:0;">×</button>
+    </span>`).join('') +
+    `<button type="button" onclick="calAulasLimparSelecao()" style="font-family:'Sora',sans-serif;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;border:1.5px solid var(--border);background:none;color:var(--text-muted);cursor:pointer;">Limpar seleção</button>`;
+}
+
+// Cards das aulas das datas selecionadas (ou resultado da busca), ao lado do calendário.
+// Usa o card comum do sistema (_aulaCardHtml) com as informações completas da aula.
+function _renderPainelAulasCal() {
   const label = document.getElementById('cal-aulas-dia-label');
   const lista = document.getElementById('cal-aulas-dia-lista');
   if (!label || !lista) return;
+  _renderChipsDatasSelCal();
+
   const busca = document.getElementById('cal-aulas-busca')?.value.trim();
-  if (busca) return; // busca ativa tem prioridade sobre o dia selecionado
-  label.textContent = iso ? _formatarDataLabel(iso) : 'Selecione um dia';
-  const aulasDoDia = (aulasTurma || []).filter(a => {
-    const d = a.data?.includes('T') ? a.data.split('T')[0] : a.data;
-    return d === iso;
-  });
-  if (!aulasDoDia.length) {
-    lista.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">Nenhuma aula nesse dia.</div>`;
+  if (busca) { calAulasBuscar(busca); return; } // busca ativa tem prioridade sobre as datas
+
+  const datas = [..._calAulasDatasSel].sort();
+  if (aulasOrdemDesc) datas.reverse();
+  label.textContent = !datas.length ? 'Selecione um dia'
+    : datas.length === 1 ? _formatarDataLabel(datas[0])
+    : `${datas.length} datas selecionadas`;
+
+  if (!datas.length) {
+    lista.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">Selecione uma data no calendário para ver as aulas. Para marcar várias datas, dê dois cliques rápidos em cada uma.</div>`;
     return;
   }
-  lista.innerHTML = aulasDoDia.map(a => {
-    const bncc = _habilidadesTextoPorAula[a.id] || a.habilidade_bncc || '';
-    return `
-    <div onclick="editarAula('${a.id}')" style="cursor:pointer;padding:9px 11px;border-radius:8px;background:#F8F6FF;">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
-        <span style="font-size:12px;font-weight:700;color:var(--text);min-width:0;overflow-wrap:anywhere;">${a.nome || 'Sem tema'}</span>
-      </div>
-      ${bncc ? `<div style="font-size:10px;color:var(--text-muted);margin-top:3px;overflow-wrap:anywhere;">${bncc}</div>` : ''}
-    </div>`;
+
+  const porData = {};
+  (aulasTurma || []).forEach(a => {
+    const d = dataAulaOnly(a.data);
+    if (d) (porData[d] = porData[d] || []).push(a);
+  });
+
+  lista.innerHTML = datas.map(iso => {
+    const todas = porData[iso] || [];
+    const visiveis = todas.filter(_aulaPassaFiltros);
+    const ocultas = todas.length - visiveis.length;
+    const d = new Date(iso + 'T12:00:00');
+    const cabecalho = datas.length > 1 ? `
+      <div style="display:flex;align-items:center;gap:8px;margin:2px 0 8px;">
+        <span style="font-size:12px;font-weight:700;color:var(--text);">${formatarData(iso)} <span style="font-weight:600;color:var(--text-muted);">· ${_DIAS_SEMANA_AULA[d.getDay()]}</span></span>
+        <span style="font-size:11px;color:var(--text-muted);font-weight:600;">(${visiveis.length})</span>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+      </div>` : '';
+    const avisoOcultas = ocultas > 0
+      ? `<div style="font-size:11px;color:var(--text-muted);padding:2px 0 8px;">${ocultas} aula${ocultas > 1 ? 's' : ''} oculta${ocultas > 1 ? 's' : ''} pelos filtros ativos.</div>` : '';
+    const corpo = visiveis.length
+      ? `<div class="cal-aulas-cards">${visiveis.map(a => _aulaCardHtml(a, { detalhado: true })).join('')}</div>`
+      : (todas.length ? '' : `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">Nenhuma aula nesse dia.</div>`);
+    return `<div class="cal-aulas-grupo" data-iso="${iso}">${cabecalho}${corpo}${avisoOcultas}</div>`;
   }).join('');
+
+  _aplicarLayoutGradeAulas();
 }
+
+// Compatibilidade: nome antigo da função de renderização da lista do dia
+function _renderListaDiaCal() { _renderPainelAulasCal(); }
 
 function calAulasBuscar(termo) {
   const lista = document.getElementById('cal-aulas-dia-lista');
   const label = document.getElementById('cal-aulas-dia-label');
   if (!lista || !label) return;
   const t = termo.trim().toLowerCase();
-  if (!t) {
-    label.textContent = _calAulasDiaSel ? _formatarDataLabel(_calAulasDiaSel) : 'Selecione um dia';
-    _renderListaDiaCal(_calAulasDiaSel);
-    return;
-  }
+  if (!t) { _renderPainelAulasCal(); return; }
   label.textContent = 'Resultados da busca';
   const resultados = (aulasTurma || []).filter(a => {
     const nome = (a.nome || '').toLowerCase();
@@ -1839,25 +1945,21 @@ function calAulasBuscar(termo) {
     lista.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">Nenhuma aula encontrada.</div>`;
     return;
   }
-  lista.innerHTML = resultados.map(a => {
-    const d = a.data?.includes('T') ? a.data.split('T')[0] : a.data;
-    const bncc = _habilidadesTextoPorAula[a.id] || a.habilidade_bncc || '';
-    return `
-    <div onclick="editarAula('${a.id}')" style="cursor:pointer;padding:9px 11px;border-radius:8px;background:#F8F6FF;">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
-        <span style="font-size:12px;font-weight:700;color:var(--text);min-width:0;overflow-wrap:anywhere;">${a.nome || 'Sem tema'}</span>
-        <span style="font-size:10px;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">${d ? _formatarDataLabel(d) : ''}</span>
-      </div>
-      ${bncc ? `<div style="font-size:10px;color:var(--text-muted);margin-top:3px;overflow-wrap:anywhere;">${bncc}</div>` : ''}
-    </div>`;
-  }).join('');
+  resultados.sort((x, y) => {
+    const dx = dataAulaOnly(x.data), dy = dataAulaOnly(y.data);
+    return dx < dy ? (aulasOrdemDesc ? 1 : -1) : dx > dy ? (aulasOrdemDesc ? -1 : 1) : 0;
+  });
+  lista.innerHTML = `<div class="cal-aulas-cards">${resultados.map(a => _aulaCardHtml(a, { detalhado: true })).join('')}</div>`;
+  _aplicarLayoutGradeAulas();
 }
 
 function abrirPainelNovaAulaCal() {
-  _calAulasDatasNovaAula = _calAulasDiaSel ? [_calAulasDiaSel] : [];
+  if (_calAulasCliqueTimer) { clearTimeout(_calAulasCliqueTimer); _calAulasCliqueTimer = null; _calAulasCliqueIso = null; }
+  _calAulasDatasNovaAula = [..._calAulasDatasSel].sort();
   _calAulasModo = 'mesmo';
   document.getElementById('cal-aulas-busca-wrap').style.display = 'none';
   document.getElementById('cal-aulas-dia-header').style.display = 'none';
+  document.getElementById('cal-aulas-datas-sel').style.display = 'none';
   document.getElementById('cal-aulas-dia-lista').style.display = 'none';
   document.getElementById('painel-nova-aula-cal').style.display = 'flex';
   document.getElementById('painel-nova-aula-alert').style.display = 'none';
@@ -1873,7 +1975,7 @@ function fecharPainelNovaAulaCal() {
   document.getElementById('cal-aulas-dia-lista').style.display = 'flex';
   _calAulasDatasNovaAula = [];
   renderCalendarioAulas();
-  _renderListaDiaCal(_calAulasDiaSel);
+  _renderPainelAulasCal();
 }
 
 function _renderChipsNovaAulaCal() {
@@ -2017,12 +2119,14 @@ async function salvarNovaAulaCal() {
   const _origCarregarAulas = carregarAulas;
   carregarAulas = async function(...args) {
     await _origCarregarAulas.apply(this, args);
-    if (!_calAulasDiaSel) {
+    if (!_calAulasInicializado) {
+      _calAulasInicializado = true;
       const hoje = new Date();
       _calAulasDiaSel = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`;
+      _calAulasDatasSel = [_calAulasDiaSel];
     }
     renderCalendarioAulas();
-    _renderListaDiaCal(_calAulasDiaSel);
+    _renderPainelAulasCal();
   };
   window.carregarAulas = carregarAulas;
 })();

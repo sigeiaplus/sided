@@ -174,6 +174,7 @@ function _limparCachesVisuais() {
   const skel = (typeof skeletonHtml === 'function') ? skeletonHtml(3) : '';
   const containers = [
     'aulas-list',
+    'cal-aulas-dia-lista',
     'avaliacoes-list',
     'chamada-list',
     'relatorio-body',

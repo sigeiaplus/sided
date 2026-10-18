@@ -794,6 +794,20 @@
       #modal-ficha-aluno .modal { max-height: 95vh !important; }
     }
 
+    /* Calendário de aulas: calendário e cards lado a lado no computador; empilhados no celular */
+    .cal-aulas-wrap { flex-wrap: nowrap !important; align-items: flex-start; }
+    .cal-aulas-cal { position: sticky; top: 12px; }
+    .cal-aulas-side { min-width: 0 !important; }
+    .aula-card.aula-card-cal { flex-wrap: wrap; row-gap: 8px; }
+    .aula-card.aula-card-cal .aula-card-info { flex: 1 1 200px; }
+    @media (max-width: 768px) {
+      .cal-aulas-wrap { flex-direction: column; flex-wrap: nowrap !important; align-items: stretch; }
+      .cal-aulas-cal { position: static; width: 100% !important; }
+      .cal-aulas-side { flex: 0 0 auto !important; width: 100%; }
+      #cal-aulas-grid .cal-aulas-dia { padding: 9px 0 !important; font-size: 13px !important; }
+      .cal-aulas-cards { grid-template-columns: 1fr !important; }
+    }
+
     /* Cards de aula em celular (≤560px): texto numa linha própria, status e ações abaixo.
        Acima disso (tablet) a linha única original cabe. !important porque o aulas.js usa style inline. */
     @media (max-width: 560px) {
@@ -817,7 +831,7 @@
       #barra-selecao > div[style*="position:relative"] > button { flex: 1 1 auto; }
       #menu-status-selecao { left: 0 !important; right: 0 !important; min-width: 0 !important; }
       /* Espaço no fim da lista para a barra não cobrir as últimas aulas */
-      #pagina-aulas.modo-selecao-ativo #aulas-list { padding-bottom: 170px; }
+      #pagina-aulas.modo-selecao-ativo #cal-aulas-dia-lista { padding-bottom: 170px; }
     }
 
     /* Seletor de aula da Chamada: chip com nome longo não passa da largura */
@@ -1171,10 +1185,10 @@
         </div>
 
         <!-- CALENDÁRIO + BUSCA + PAINEL NOVA AULA -->
-        <div style="background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:16px;flex-wrap:wrap;">
+        <div class="cal-aulas-wrap" style="background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:16px;flex-wrap:wrap;">
 
           <!-- Mini calendário -->
-          <div style="width:220px;flex-shrink:0;">
+          <div class="cal-aulas-cal" style="width:220px;flex-shrink:0;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
               <button onclick="calAulasMudarMes(-1)" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:2px;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -1191,10 +1205,11 @@
               <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#DC2626;margin-right:5px;"></span>Feriado</span>
               <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#9CA3AF;margin-right:5px;"></span>Recesso</span>
             </div>
+            <div style="font-size:10px;color:var(--text-muted);line-height:1.4;margin-top:10px;">Dois cliques rápidos em uma data adicionam (ou removem) à seleção.</div>
           </div>
 
           <!-- Coluna direita: busca + nova aula OU lista do dia -->
-          <div style="flex:1;min-width:min(240px,100%);display:flex;flex-direction:column;gap:10px;">
+          <div class="cal-aulas-side" style="flex:1;min-width:min(240px,100%);display:flex;flex-direction:column;gap:10px;">
 
             <!-- Busca -->
             <div id="cal-aulas-busca-wrap" style="position:relative;">
@@ -1213,7 +1228,10 @@
               </button>
             </div>
 
-            <!-- Lista de aulas do dia (ou resultado da busca) -->
+            <!-- Datas selecionadas (2 ou mais), com opção de desmarcar -->
+            <div id="cal-aulas-datas-sel" style="display:none;flex-wrap:wrap;gap:6px;align-items:center;"></div>
+
+            <!-- Cards das aulas das datas selecionadas (ou resultado da busca) -->
             <div id="cal-aulas-dia-lista" style="display:flex;flex-direction:column;gap:6px;"></div>
 
             <!-- Painel de criação (escondido por padrão) -->
@@ -1257,9 +1275,6 @@
 
           </div>
         </div>
-
-        <!-- LISTA DE AULAS (agrupada por status) -->
-        <div id="aulas-list"></div>
 
         <!-- Barra flutuante de ações de seleção -->
         <div id="barra-selecao" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1E1248;border-radius:16px;padding:12px 20px;display:none;align-items:center;gap:14px;box-shadow:0 8px 32px rgba(0,0,0,0.25);z-index:500;animation:slideUp 0.2s ease;">
