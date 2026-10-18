@@ -347,6 +347,7 @@ function toggleModoSelecao() {
   aulasSelecionadas.clear();
   const btn = document.getElementById('btn-modo-selecao');
   const barra = document.getElementById('barra-selecao');
+  document.getElementById('pagina-aulas')?.classList.toggle('modo-selecao-ativo', modoSelecaoAulas);
   if (modoSelecaoAulas) {
     btn.style.background = 'var(--purple)';
     btn.style.color = '#fff';
@@ -1797,9 +1798,9 @@ function _renderListaDiaCal(iso) {
     return `
     <div onclick="editarAula('${a.id}')" style="cursor:pointer;padding:9px 11px;border-radius:8px;background:#F8F6FF;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
-        <span style="font-size:12px;font-weight:700;color:var(--text);">${a.nome || 'Sem tema'}</span>
-        ${bncc ? `<span style="font-size:10px;color:var(--text-muted);white-space:nowrap;">${bncc}</span>` : ''}
+        <span style="font-size:12px;font-weight:700;color:var(--text);min-width:0;overflow-wrap:anywhere;">${a.nome || 'Sem tema'}</span>
       </div>
+      ${bncc ? `<div style="font-size:10px;color:var(--text-muted);margin-top:3px;overflow-wrap:anywhere;">${bncc}</div>` : ''}
     </div>`;
   }).join('');
 }
@@ -1831,10 +1832,10 @@ function calAulasBuscar(termo) {
     return `
     <div onclick="editarAula('${a.id}')" style="cursor:pointer;padding:9px 11px;border-radius:8px;background:#F8F6FF;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
-        <span style="font-size:12px;font-weight:700;color:var(--text);">${a.nome || 'Sem tema'}</span>
-        <span style="font-size:10px;color:var(--text-muted);white-space:nowrap;">${d ? _formatarDataLabel(d) : ''}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--text);min-width:0;overflow-wrap:anywhere;">${a.nome || 'Sem tema'}</span>
+        <span style="font-size:10px;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">${d ? _formatarDataLabel(d) : ''}</span>
       </div>
-      ${bncc ? `<span style="font-size:10px;color:var(--text-muted);">${bncc}</span>` : ''}
+      ${bncc ? `<div style="font-size:10px;color:var(--text-muted);margin-top:3px;overflow-wrap:anywhere;">${bncc}</div>` : ''}
     </div>`;
   }).join('');
 }
