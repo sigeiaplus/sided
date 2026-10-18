@@ -44,9 +44,9 @@ function _planejamentoRenderLista(files) {
   lista.innerHTML = files.map(file => {
     const safeName = String(file.name || file.path || '').replace(/'/g, "\\'");
     const displayName = safeName.replace(/^.*\/(.*)$/, '$1');
-    return `<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#F8FAFC;">
-      <button onclick="planejamentoExibirArquivo('${safeName}')" style="padding:0;border:none;background:none;color:var(--text-muted);font-size:12px;cursor:pointer;white-space:nowrap;flex:1;text-align:left;">${displayName}</button>
-      <button onclick="planejamentoRemoverArquivo('${safeName}')" style="padding:3px 6px;border:1px solid #FBBFBF;border-radius:5px;background:none;color:#DC2626;font-size:11px;font-weight:600;cursor:pointer;" onmouseover="this.style.background='#FEE2E2'" onmouseout="this.style.background='none'">✕</button>
+    return `<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#F8FAFC;max-width:100%;min-width:0;box-sizing:border-box;">
+      <button onclick="planejamentoExibirArquivo('${safeName}')" title="${displayName.replace(/"/g, '&quot;')}" style="padding:0;border:none;background:none;color:var(--text-muted);font-size:12px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;text-align:left;">${displayName}</button>
+      <button onclick="planejamentoRemoverArquivo('${safeName}')" style="flex-shrink:0;padding:3px 6px;border:1px solid #FBBFBF;border-radius:5px;background:none;color:#DC2626;font-size:11px;font-weight:600;cursor:pointer;" onmouseover="this.style.background='#FEE2E2'" onmouseout="this.style.background='none'">✕</button>
     </div>`;
   }).join('');
 }
@@ -298,12 +298,15 @@ function _renderHabilidadesPlanejamento() {
   }
   wrap.style.display = 'grid';
   wrap.style.gap = '10px';
+  // Sem isso a coluna implícita do grid é "auto" e cresce até o min-content do card
+  // (texto/chips longos), empurrando os cards para além da coluna da página.
+  wrap.style.gridTemplateColumns = 'minmax(0, 1fr)';
   wrap.innerHTML = _habilidadesPlanejamentoCache.map(h => {
     const trimestre = _nomeTrimestreDaHabilidade(h);
     const temas = Array.isArray(h.temas) ? h.temas : [];
-    return `<div style="background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;">
+    return `<div style="background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;min-width:0;box-sizing:border-box;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-        <div style="min-width:0;">
+        <div style="min-width:0;flex:1;overflow-wrap:anywhere;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
             <span style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:#3B4FE4;">${h.codigo}</span>
             ${trimestre ? `<span style="font-size:12px;color:var(--text-muted);">${trimestre}</span>` : ''}

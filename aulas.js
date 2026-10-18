@@ -286,7 +286,7 @@ function renderListaAulas() {
     return `<div class="aula-card${selecionada ? ' selecionada' : ''}" ${cardClick}
       style="background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all 0.15s;margin-bottom:8px;${selecionada ? 'border-color:var(--purple);background:#F8F6FF;' : ''}">
       ${checkboxHtml}
-      <div style="flex:1;min-width:0;">
+      <div class="aula-card-info" style="flex:1;min-width:0;">
         <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">${diaSem}</div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-size:14px;font-weight:700;color:var(--text);">${dataFmt}</span>
@@ -296,7 +296,7 @@ function renderListaAulas() {
           ${triBadge}${chamadaTag}
         </div>
       </div>
-      <span style="background:${bc.bg};color:#fff;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${bc.label}</span>
+      <span class="aula-card-status" style="background:${bc.bg};color:#fff;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${bc.label}</span>
       ${acoesBtns}
     </div>`;
   }

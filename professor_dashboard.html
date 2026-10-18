@@ -213,6 +213,9 @@
     /* CONTENT */
     .content { padding: 56px 0 0 0; flex: 1; min-height: 100vh; }
 
+    /* Padding interno das páginas (antes inline). No celular o #col-main já dá a margem. */
+    .pagina-padded { padding: 24px 28px; }
+
     /* ── Botões do menu lateral da turma ── */
     .stb {
       width: 100%; display: flex; align-items: center; gap: 8px;
@@ -664,12 +667,17 @@
         left: 0;
         width: var(--sidebar-w); /* 220px igual ao desktop */
         background: var(--purple-dark);
-        box-shadow: 4px 0 24px rgba(0,0,0,0.25);
+        box-shadow: none; /* fechado: a sombra vazaria para dentro da tela */
+        transition: transform 0.35s ease, box-shadow 0.35s ease;
       }
-      .sidebar.open { transform: translateX(0); }
+      .sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.25); }
 
       /* Main ocupa tudo, espaço pro header fixo */
       .main { margin-right: 0; padding-top: var(--header-h); }
+      /* O espaço do header já vem de .main; o 56px de .content é do desktop (escola-bar) */
+      .content { padding-top: 0; }
+      /* A margem lateral no celular vem só de #col-main (16px) */
+      .pagina-padded { padding: 0; }
 
       /* Cabeçalho escola some — substituído pelo header mobile */
       .escola-bar { display: none; }
@@ -784,6 +792,16 @@
 
       /* Ficha do aluno no modal */
       #modal-ficha-aluno .modal { max-height: 95vh !important; }
+    }
+
+    /* Cards de aula em celular (≤560px): texto numa linha própria, status e ações abaixo.
+       Acima disso (tablet) a linha única original cabe. !important porque o aulas.js usa style inline. */
+    @media (max-width: 560px) {
+      .aula-card { flex-wrap: wrap !important; padding: 12px 14px !important; row-gap: 8px !important; }
+      .aula-card .aula-card-info { flex: 1 1 calc(100% - 36px) !important; }
+      .aula-card .aula-card-status { margin-right: auto; }
+      .aula-card .aula-actions { margin-left: auto; flex-wrap: wrap; }
+      .aula-card .aula-actions .btn-icon { min-width: 36px; min-height: 36px; justify-content: center; }
     }
 
     /* Telas muito pequenas */
@@ -1276,11 +1294,11 @@
 
       <!-- Card seletor de aula -->
       <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:20px;">
-        <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap;">
           <div style="width:44px;height:44px;border-radius:8px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           </div>
-          <div style="flex:1;">
+          <div style="flex:1 1 140px;min-width:0;">
             <div class="date-picker-wrap">
               <input id="chamada-date-input" placeholder="DD/MM/AAAA" autocomplete="off"
                 oninput="onChamadaDateInput(this,'cal-chamada')"
@@ -1516,7 +1534,7 @@
       </div>
     </div>
 
-    <div id="pagina-mapeamento-sala" style="display:none;padding:24px 28px;">
+    <div id="pagina-mapeamento-sala" class="pagina-padded" style="display:none;">
 
       <!-- ── LISTA DE MAPEAMENTOS ── -->
       <div id="mapa-lista-view">
@@ -1586,7 +1604,7 @@
       </div>
 
     </div>
-    <div id="pagina-calendario-escolar" style="display:none;padding:24px 28px;">
+    <div id="pagina-calendario-escolar" class="pagina-padded" style="display:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
         <div>
           <div style="font-size:16px;font-weight:700;color:var(--text);">Calendário Escolar</div>
@@ -1624,7 +1642,7 @@
       </div>
     </div>
 
-    <div id="pagina-planejamento" style="display:none;padding:24px 28px;">
+    <div id="pagina-planejamento" class="pagina-padded" style="display:none;">
       <!-- ── Visão principal: Plano de aula (inline, dentro do layout do SIDED+) ── -->
       <div id="planejamento-view-plano-aula" style="display:block;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
