@@ -60,6 +60,7 @@ async function _carregarContextoTurmaViaDisciplina(td) {
   chamadaTemp = {};
   triAtivo = '';
   modoSelecionarAulas = false;
+  if (typeof resetarModoSelecaoAulas === 'function') resetarModoSelecaoAulas();
   aulasSelecionadas = new Set();
   grupoComposicaoSelecionada = [];
   grupoEntrouId = null;
@@ -278,6 +279,7 @@ function _executarVoltarDashboard() {
   chamadaTemp = {};
   triAtivo = '';
   modoSelecionarAulas = false;
+  if (typeof resetarModoSelecaoAulas === 'function') resetarModoSelecaoAulas();
   aulasSelecionadas = new Set();
   grupoComposicaoSelecionada = [];
   grupoEntrouId = null;
@@ -343,8 +345,11 @@ async function _executarAbrirPagina(pagina, opts = {}) {
       }
 
       case 'relatorio-geral': {
-        atualizarCabecalho({ info: 'Relatórios', titulo: nome, detalhe: 'Voltar à turma', voltarFn: 'voltarTurma', cor: '#16A34A' });
-        atualizarHeaderMobile('Relatório Geral', nome, true, true);
+        // O relatório geral é a tela inicial da turma: aqui "voltar" leva ao dashboard
+        // (mesmo comportamento de abrirTurma). Antes apontava para voltarTurma, que só
+        // reabria o próprio relatório e parecia não fazer nada.
+        atualizarCabecalho({ info: 'Relatórios', titulo: nome, detalhe: 'Voltar às turmas', voltarFn: 'voltarDashboard', cor: '#16A34A' });
+        atualizarHeaderMobile('Relatório Geral', nome, true, false);
         await garantirAlunosTurma();
         const triRel = parseInt((opts.tri ?? document.getElementById('sel-rel-tri')?.value) || '1');
         const selRelTri = document.getElementById('sel-rel-tri');

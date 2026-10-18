@@ -364,6 +364,19 @@ function toggleModoSelecao() {
   renderListaAulas();
 }
 
+// Sai do modo de seleção sem renderizar (usado ao trocar de turma/voltar ao dashboard,
+// para a barra e o botão "Selecionar" não ficarem ativos com estado antigo).
+function resetarModoSelecaoAulas() {
+  modoSelecaoAulas = false;
+  aulasSelecionadas.clear();
+  document.getElementById('pagina-aulas')?.classList.remove('modo-selecao-ativo');
+  const barra = document.getElementById('barra-selecao');
+  if (barra) barra.style.display = 'none';
+  const btn = document.getElementById('btn-modo-selecao');
+  if (btn) { btn.style.background = 'var(--white)'; btn.style.color = 'var(--text-muted)'; btn.style.borderColor = 'var(--border)'; }
+  atualizarContadorSelecao();
+}
+
 function toggleSelecaoAula(id) {
   if (aulasSelecionadas.has(id)) aulasSelecionadas.delete(id);
   else aulasSelecionadas.add(id);

@@ -36,7 +36,12 @@ function voltarMobile() {
     return;
   }
   if (turmaAtiva) {
-    voltarDashboard();
+    // Dentro de um serviço (aulas, chamada, planejamento...) volta ao relatório da
+    // turma; só do relatório volta ao dashboard — igual ao desktop.
+    const relatorio = document.getElementById('pagina-relatorio-geral');
+    const noRelatorio = !!(relatorio && relatorio.style.display && relatorio.style.display !== 'none');
+    if (noRelatorio) voltarDashboard();
+    else voltarTurma();
     return;
   }
 }
