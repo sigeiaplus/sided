@@ -2346,6 +2346,127 @@
   </div>
 </div>
 
+<!-- DIAGNÓSTICO TEMPORÁRIO: carregado antes de todos os scripts do app. Remover este <script> após a investigação. -->
+<script>
+// ═══ DIAGNÓSTICO TEMPORÁRIO — botões Salvar/Cancelar (REMOVER APÓS A INVESTIGAÇÃO) ═══
+// Só roda se a URL tiver ?diag=1 (fica salvo no aparelho). ?diag=0 desliga.
+// Apenas OBSERVA eventos (listeners passivos): nunca chama preventDefault/stopPropagation
+// e não altera nenhuma função ou estado do app.
+(function () {
+  if (window.__sidedDiagAtivo) return; window.__sidedDiagAtivo = true;
+  try {
+    const q = new URLSearchParams(location.search).get('diag');
+    if (q === '1') localStorage.setItem('sided_diag', '1');
+    if (q === '0') localStorage.removeItem('sided_diag');
+    if (localStorage.getItem('sided_diag') !== '1') return;
+  } catch (_) { return; }
+
+  const linhas = [];
+  window.__sidedDiagLog = linhas;
+  let t0 = 0;
+  let down = null;
+  let ultimoResize = '';
+  const vv = window.visualViewport;
+
+  const desc = el => {
+    if (!el || !el.tagName) return String(el);
+    const tag = el.tagName.toLowerCase();
+    let s = tag + (el.id ? '#' + el.id : (el.classList && el.classList[0] ? '.' + el.classList[0] : ''));
+    if (tag === 'button' || tag === 'a') s += '"' + (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 14) + '"';
+    return s;
+  };
+  const vp = () => 'vv=' + (vv ? Math.round(vv.height) + '@' + Math.round(vv.offsetTop) : '-') + ' in=' + window.innerHeight;
+  const foco = () => { const a = document.activeElement; return a && a !== document.body ? desc(a) : 'nenhum'; };
+  const abertos = () => Array.from(document.querySelectorAll('.modal-overlay.open')).map(m => m.id).join(',') || 'nenhum';
+
+  let box, pre;
+  const draw = () => { if (pre) pre.textContent = linhas.slice(-16).join('\n'); };
+  const log = msg => {
+    const now = performance.now();
+    if (!t0 || now - t0 > 3000) { t0 = now; linhas.push('──────'); }
+    linhas.push('+' + Math.round(now - t0) + ' ' + msg);
+    draw();
+  };
+  const ignorar = e => !!(e.target && e.target.closest && e.target.closest('#sided-diag'));
+
+  const montar = () => {
+    box = document.createElement('div');
+    box.id = 'sided-diag';
+    box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;background:rgba(0,0,0,.85);color:#9f9;font:10px/1.25 monospace;padding:4px 6px;pointer-events:none;white-space:pre-wrap;max-height:40vh;overflow:hidden;';
+    const bar = document.createElement('div');
+    bar.style.cssText = 'pointer-events:auto;display:flex;gap:6px;margin-bottom:3px;touch-action:manipulation;';
+    const mk = (txt, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = txt;
+      b.style.cssText = 'font:11px monospace;padding:3px 8px;border:1px solid #9f9;background:#000;color:#9f9;border-radius:4px;';
+      b.addEventListener('click', () => fn(b));
+      return b;
+    };
+    bar.appendChild(mk('Copiar', b => {
+      const txt = linhas.join('\n');
+      const fallback = () => {
+        const ta = document.createElement('textarea');
+        ta.value = txt; ta.style.cssText = 'position:fixed;opacity:0;';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); } catch (_) {}
+        ta.remove();
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).catch(fallback);
+      else fallback();
+      b.textContent = 'Copiado!';
+      setTimeout(() => { b.textContent = 'Copiar'; }, 1500);
+    }));
+    bar.appendChild(mk('Limpar', () => { linhas.length = 0; t0 = 0; draw(); }));
+    pre = document.createElement('div');
+    box.appendChild(bar);
+    box.appendChild(pre);
+    document.body.appendChild(box);
+    log('diag ativo ' + vp() + ' ua=' + navigator.userAgent.slice(-40));
+  };
+  if (document.body) montar(); else document.addEventListener('DOMContentLoaded', montar);
+
+  const opts = { capture: true, passive: true };
+
+  ['pointerdown', 'pointerup', 'pointercancel', 'touchstart', 'touchend', 'touchcancel', 'mousedown', 'mouseup', 'click'].forEach(tipo => {
+    // Registrado no window (captura): roda ANTES do listener de pointerdown do document,
+    // então o log de pointerdown mostra o estado anterior ao blur().
+    window.addEventListener(tipo, e => { try {
+      if (ignorar(e)) return;
+      const p = (e.changedTouches && e.changedTouches[0]) || e;
+      const btn = e.target.closest ? e.target.closest('button, a, [onclick]') : null;
+      let extra = '';
+      if (tipo === 'pointerdown') down = btn ? { btn, top: btn.getBoundingClientRect().top } : null;
+      if (down && /up|click|cancel|touchend/.test(tipo)) {
+        extra += ' dBtn=' + Math.round(down.btn.getBoundingClientRect().top - down.top);
+      }
+      if (tipo === 'pointerup' || tipo === 'click' || tipo === 'touchend') {
+        extra += ' sob=' + (document.elementFromPoint ? desc(document.elementFromPoint(p.clientX, p.clientY)) : '?');
+      }
+      log(tipo + ' alvo=' + desc(e.target) + ' foco=' + foco() + ' y=' + Math.round(p.clientY) + ' ' + vp() + extra);
+      if (tipo === 'click' && btn) {
+        setTimeout(() => {
+          log('  pós-click ' + desc(btn) + (btn.disabled ? ' [disabled]' : '') + ' modais=' + abertos());
+        }, 40);
+      }
+    } catch (_) {} }, opts);
+  });
+
+  window.addEventListener('focusin', e => { if (!ignorar(e)) log('focusin ' + desc(e.target) + ' ' + vp()); }, opts);
+  window.addEventListener('focusout', e => { if (!ignorar(e)) log('focusout(blur) ' + desc(e.target) + ' ' + vp()); }, opts);
+
+  const aoRedimensionar = nome => () => {
+    const s = nome + ' ' + vp();
+    if (s !== ultimoResize) { ultimoResize = s; log(s); }
+  };
+  if (vv) {
+    vv.addEventListener('resize', aoRedimensionar('vv-resize'));
+    vv.addEventListener('scroll', aoRedimensionar('vv-scroll'));
+  }
+  window.addEventListener('resize', aoRedimensionar('win-resize'));
+})();
+// ═══ FIM DO DIAGNÓSTICO TEMPORÁRIO ═══
+</script>
 <script src="/api.js"></script>
 <script src="/state.js"></script>
 <script src="/ui.js"></script>
