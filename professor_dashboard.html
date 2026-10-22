@@ -1254,6 +1254,12 @@
 
               <div id="painel-nova-aula-form-mesmo" style="display:flex;flex-direction:column;gap:10px;">
                 <div class="field">
+                  <label style="font-size:11px;">Plano de aula <span style="font-weight:400;color:var(--text-muted);">(opcional)</span></label>
+                  <select id="nac-plano" onchange="nacPlanoMesmoAlterado(this)" style="width:100%;box-sizing:border-box;">
+                    <option value="">Sem plano vinculado</option>
+                  </select>
+                </div>
+                <div class="field">
                   <label style="font-size:11px;">Tema</label>
                   <input id="nac-tema" placeholder="Ex: Revolução Industrial" style="width:100%;box-sizing:border-box;">
                 </div>
@@ -2062,6 +2068,15 @@
         <select id="aula-disciplina">
           <option value="">Selecione a disciplina...</option>
         </select>
+      </div>
+
+      <!-- PLANO DE AULA (opcional) — vincula a aula a um plano de plano_docs -->
+      <div class="field">
+        <label>Plano de aula <span style="font-size:10px;color:var(--text-muted);font-weight:400;">(opcional)</span></label>
+        <select id="aula-plano" onchange="aulaPlanoAlterado(this)">
+          <option value="">Sem plano vinculado</option>
+        </select>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Ao escolher um plano, o tema e as habilidades BNCC são preenchidos automaticamente (você pode ajustar).</div>
       </div>
 
       <!-- TEMA (antes: Nome da aula) -->

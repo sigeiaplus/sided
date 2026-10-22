@@ -775,6 +775,10 @@ window.abrirModalAula = function(data) {
   document.getElementById('aula-status').value = data ? calcularStatusAuto(data.data, data.id) : 'futura';
   document.getElementById('aula-alert').style.display = 'none';
 
+  // Plano de aula (opcional): restaura o vínculo na edição SEM sobrescrever tema/habilidades salvos
+  _aulaModalTemColunaPlano = !!(data && Object.prototype.hasOwnProperty.call(data, 'plano_doc_id'));
+  PlanoVinculoAula.preencherSelect(document.getElementById('aula-plano'), data?.plano_doc_id ?? '', true);
+
   // Campo de habilidades BNCC — multi-seleção via chips
   _habilidadesAulaSelecionadas = [];
   const bnccInput = document.getElementById('aula-bncc');
@@ -856,6 +860,13 @@ window.salvarAula = async function() {
     ...(discVal ? { disciplina: discVal } : {}),
   };
 
+  // Vínculo com plano_docs. A chave só vai no corpo quando há plano escolhido, ou quando
+  // se está desvinculando uma aula que já tinha a coluna: assim, criar aula sem plano
+  // continua idêntico ao comportamento anterior (e funciona mesmo antes da migração SQL).
+  const planoSel = document.getElementById('aula-plano')?.value || '';
+  if (planoSel) body.plano_doc_id = planoSel;
+  else if (editandoAulaId && _aulaModalTemColunaPlano) body.plano_doc_id = null;
+
     let aulaId = editandoAulaId;
     if (editandoAulaId) {
       const atualizadas = await api(`aulas?id=eq.${editandoAulaId}`, { method: 'PATCH', body: JSON.stringify(body) });
@@ -880,7 +891,7 @@ window.salvarAula = async function() {
     atualizarCalendario('cal-aula');
     if (typeof mostrarToast === 'function') mostrarToast('Aula salva com sucesso!');
   } catch (e) {
-    alEl.textContent = `Erro ao salvar: ${e?.message || 'Tente novamente.'}`;
+    alEl.textContent = `Erro ao salvar: ${PlanoVinculoAula.mensagemErro(e)}`;
     alEl.style.display = 'block';
   } finally {
     btn.disabled = false;
@@ -1073,6 +1084,197 @@ async function _salvarVinculosHabilidadesAula(aulaId, habilidadesSelecionadas) {
   }
 }
 window._salvarVinculosHabilidadesAula = _salvarVinculosHabilidadesAula;
+
+// ─── PLANO DE AULA ↔ AULA (vínculo opcional com plano_docs) ─────────────────
+// O módulo Plano de aula grava em plano_docs (tema, valores, turmas, habilidades).
+// Aqui só LEMOS os planos do professor (a RLS de plano_docs garante o isolamento) e
+// gravamos aulas.plano_doc_id. Nada de plano_docs é alterado por este código.
+let _aulaModalTemColunaPlano = false; // a aula aberta no modal já veio com a coluna plano_doc_id?
+
+const PlanoVinculoAula = (function () {
+  const TTL_MS = 20000;
+  let _lista = null;      // [{id, tema, turmas, habilidades}]
+  let _prof = null;       // professor para o qual _lista vale
+  let _quando = 0;
+  let _promessa = null;
+  let _falhou = false;
+
+  const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const _profId = () => String(JSON.parse(sessionStorage.getItem('prof_data') || '{}').id || '');
+
+  function _json(v) {
+    if (typeof v === 'string') {
+      const t = v.trim();
+      if (t[0] === '[' || t[0] === '{') { try { return JSON.parse(t); } catch (_) {} }
+    }
+    return v;
+  }
+
+  // tema/turmas podem vir como texto, array de textos ou array de objetos
+  function _txt(v) {
+    v = _json(v);
+    if (v == null) return '';
+    if (Array.isArray(v)) return v.map(_txt).filter(Boolean).join(', ');
+    if (typeof v === 'object') return String(v.nome ?? v.name ?? v.label ?? v.titulo ?? v.tema ?? v.codigo ?? '').trim();
+    return String(v).trim();
+  }
+
+  async function carregar(forcar) {
+    const prof = _profId();
+    const fresco = _lista && _prof === prof && (Date.now() - _quando) < TTL_MS;
+    if (fresco && !forcar) return _lista;
+    if (_promessa) return _promessa;
+    _promessa = (async () => {
+      let rows = null;
+      try {
+        rows = await api('plano_docs?select=id,tema,turmas,habilidades&limit=500');
+      } catch (_) {
+        try { rows = await api('plano_docs?select=*&limit=500'); }
+        catch (e2) { console.error('[PLANO↔AULA] Erro ao carregar plano_docs:', e2); rows = null; }
+      }
+      if (!Array.isArray(rows)) {
+        _falhou = true;
+        _lista = (_prof === prof && _lista) ? _lista : [];
+        return _lista;
+      }
+      _falhou = false;
+      _prof = prof;
+      _quando = Date.now();
+      _lista = rows.map(r => ({ id: r.id, tema: _txt(r.tema), turmas: _txt(r.turmas), habilidades: r.habilidades }));
+      return _lista;
+    })();
+    try { return await _promessa; } finally { _promessa = null; }
+  }
+
+  function _rotulo(p) {
+    let t = p.tema || '(sem tema)';
+    if (p.turmas) t += ' — ' + p.turmas;
+    return t.length > 80 ? t.slice(0, 77) + '...' : t;
+  }
+
+  function opcoesHtml(selecionado) {
+    const s = selecionado == null ? '' : String(selecionado);
+    let achou = !s;
+    let h = `<option value="">${_falhou && !(_lista || []).length ? 'Sem plano vinculado (planos não carregaram)' : 'Sem plano vinculado'}</option>`;
+    (_lista || []).forEach(p => {
+      const marcado = String(p.id) === s;
+      if (marcado) achou = true;
+      h += `<option value="${esc(p.id)}"${marcado ? ' selected' : ''}>${esc(_rotulo(p))}</option>`;
+    });
+    // O vínculo salvo aponta para um plano que não está (mais) visível: preserva o valor
+    // para não desvincular sem querer ao salvar a aula.
+    if (!achou) h += `<option value="${esc(s)}" selected>Plano vinculado (indisponível)</option>`;
+    return h;
+  }
+
+  // Preenche um <select> de planos. Enquanto a lista carrega, mantém o valor atual
+  // selecionado — assim salvar rápido nunca desvincula a aula por engano.
+  async function preencherSelect(el, valor, forcar) {
+    if (!el) return;
+    const tok = (el._pvTok = (el._pvTok || 0) + 1);
+    const v = valor == null ? '' : String(valor);
+    const fresco = _lista && _prof === _profId() && (Date.now() - _quando) < TTL_MS;
+    if (fresco && !forcar) { el.innerHTML = opcoesHtml(v); el.value = v; return; }
+    el.innerHTML = v
+      ? `<option value="">Sem plano vinculado</option><option value="${esc(v)}" selected>Carregando plano...</option>`
+      : '<option value="">Carregando planos...</option>';
+    el.value = v;
+    await carregar(forcar);
+    if (el._pvTok !== tok) return; // outro preenchimento mais novo assumiu
+    const atual = el.value; // se o usuário já escolheu algo durante o carregamento, respeita
+    el.innerHTML = opcoesHtml(atual || v);
+    el.value = atual || v;
+  }
+
+  // ── habilidades do plano → habilidades cadastradas na turma (habilidades_planejamento) ──
+  const _normCod = s => String(s ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const _BNCC_RE = /\b(?:EI|EF|EM)\d{2,4}[A-Z]{2,3}\d{2,3}\b/gi;
+
+  function _resolverHabilidades(bruto, cache) {
+    const ids = new Set();
+    const itens = [];
+    (function coletar(x) {
+      x = _json(x);
+      if (x == null) return;
+      if (Array.isArray(x)) { x.forEach(coletar); return; }
+      if (typeof x === 'object') {
+        if (x.id != null) ids.add(String(x.id));
+        const c = x.codigo ?? x.code ?? x.cod;
+        if (c) itens.push(String(c));
+        return;
+      }
+      String(x).split(/[\n;,]+/).forEach(t => { t = t.trim(); if (t) itens.push(t); });
+    })(bruto);
+
+    const porCodigo = new Map();
+    (cache || []).forEach(h => porCodigo.set(_normCod(h.codigo), h));
+
+    const achadas = new Map();
+    (cache || []).forEach(h => { if (ids.has(String(h.id))) achadas.set(String(h.id), h); });
+
+    const naoEncontradas = [];
+    itens.forEach(item => {
+      const tokens = [_normCod(item), ...item.split(/[^A-Za-z0-9]+/).filter(Boolean).map(_normCod)];
+      let casou = false;
+      tokens.forEach(t => { const h = porCodigo.get(t); if (h) { achadas.set(String(h.id), h); casou = true; } });
+      if (casou) return;
+      const codigos = item.match(_BNCC_RE);
+      if (codigos) codigos.forEach(c => { if (!porCodigo.has(_normCod(c))) naoEncontradas.push(c.toUpperCase()); });
+      else if (item.length <= 20) naoEncontradas.push(item);
+    });
+
+    // mantém a ordem do cadastro da turma
+    const encontradas = (cache || []).filter(h => achadas.has(String(h.id)))
+      .map(h => ({ id: h.id, codigo: h.codigo, descricao: h.descricao }));
+    return { encontradas, naoEncontradas: [...new Set(naoEncontradas)] };
+  }
+
+  // Dados que o plano escolhido preenche no formulário
+  async function dadosDoPlano(planoId) {
+    const lista = await carregar(false);
+    const p = lista.find(x => String(x.id) === String(planoId));
+    if (!p) return null;
+    const cache = await _habilidadesAulaCarregarCache();
+    const r = _resolverHabilidades(p.habilidades, cache);
+    return { tema: p.tema, habilidades: r.encontradas, naoEncontradas: r.naoEncontradas };
+  }
+
+  function avisar(dados) {
+    if (!dados || typeof mostrarToast !== 'function') return;
+    if (dados.naoEncontradas.length) {
+      const n = dados.naoEncontradas.length;
+      mostrarToast(`${n} habilidade${n > 1 ? 's' : ''} do plano (${dados.naoEncontradas.slice(0, 3).join(', ')}${n > 3 ? '...' : ''}) não ${n > 1 ? 'estão cadastradas' : 'está cadastrada'} nesta turma e não ${n > 1 ? 'foram adicionadas' : 'foi adicionada'}.`);
+    }
+  }
+
+  function mensagemErro(e) {
+    const m = String(e?.message || '');
+    if (/plano_doc_id/i.test(m) && /(column|coluna|schema cache|PGRST204)/i.test(m)) {
+      return 'a coluna aulas.plano_doc_id ainda não existe no banco. Execute a migração SQL do vínculo com plano de aula no Supabase.';
+    }
+    return m || 'Tente novamente.';
+  }
+
+  return { carregar, preencherSelect, dadosDoPlano, avisar, mensagemErro, invalidar() { _lista = null; _quando = 0; } };
+})();
+window.PlanoVinculoAula = PlanoVinculoAula;
+
+// Escolheu um plano no modal de aula → preenche tema e habilidades BNCC (editáveis depois)
+window.aulaPlanoAlterado = async function (sel) {
+  const id = sel?.value || '';
+  if (!id) return; // desvincular não apaga o que já está preenchido
+  let dados = null;
+  try { dados = await PlanoVinculoAula.dadosDoPlano(id); }
+  catch (e) { console.error('[PLANO↔AULA] Erro ao ler o plano:', e); }
+  if (sel.value !== id) return; // o usuário trocou de plano enquanto carregava
+  if (!dados) return;
+  if (dados.tema) document.getElementById('aula-nome').value = dados.tema;
+  if (dados.habilidades.length) {
+    _habilidadesAulaSelecionadas = dados.habilidades;
+    _renderChipsHabilidadesAula();
+  }
+  PlanoVinculoAula.avisar(dados);
+};
 
 // ─── 4. MULTI AULAS ─────────────────────────────────────────────────────────
 window.abrirMultiAulas = async function() {
@@ -2204,6 +2406,36 @@ function abrirPainelNovaAulaCal() {
   _nacLimparSeletoresIndividual();
   const formInd = document.getElementById('painel-nova-aula-form-individual');
   if (formInd) formInd.innerHTML = '';
+
+  // Plano de aula do modo "Mesmo conteúdo": sempre começa sem plano
+  PlanoVinculoAula.preencherSelect(document.getElementById('nac-plano'), '', true);
+}
+
+// Modo "Mesmo conteúdo": escolheu um plano → preenche tema e habilidades do painel
+window.nacPlanoMesmoAlterado = async function (sel) {
+  const id = sel?.value || '';
+  if (!id) return;
+  let dados = null;
+  try { dados = await PlanoVinculoAula.dadosDoPlano(id); }
+  catch (e) { console.error('[PLANO↔AULA] Erro ao ler o plano:', e); }
+  if (sel.value !== id || !dados) return;
+  if (dados.tema) document.getElementById('nac-tema').value = dados.tema;
+  if (dados.habilidades.length && _nacMesmoBncc) _nacMesmoBncc.setSelecionadas(dados.habilidades);
+  PlanoVinculoAula.avisar(dados);
+};
+
+// Modo "Individual por data": plano escolhido em um card preenche só aquele card
+async function _nacPlanoIndividualAlterado(card, sel) {
+  const id = sel?.value || '';
+  if (!id) return;
+  let dados = null;
+  try { dados = await PlanoVinculoAula.dadosDoPlano(id); }
+  catch (e) { console.error('[PLANO↔AULA] Erro ao ler o plano:', e); }
+  if (sel.value !== id || !dados) return;
+  const iso = card.dataset.iso;
+  if (dados.tema) card.querySelector('.nac-ind-tema').value = dados.tema;
+  if (dados.habilidades.length && _nacIndBncc[iso]) _nacIndBncc[iso].setSelecionadas(dados.habilidades);
+  PlanoVinculoAula.avisar(dados);
 }
 
 function fecharPainelNovaAulaCal() {
@@ -2264,6 +2496,7 @@ function _renderFormNovaAulaCal() {
       tema: card.querySelector('.nac-ind-tema')?.value || '',
       conteudo: card.querySelector('.nac-ind-conteudo')?.value || '',
       habilidades: _nacIndBncc[iso] ? _nacIndBncc[iso].getSelecionadas() : [],
+      plano: card.querySelector('.nac-ind-plano')?.value || '',
     };
   });
   _nacLimparSeletoresIndividual();
@@ -2278,6 +2511,10 @@ function _renderFormNovaAulaCal() {
   wrap.innerHTML = _calAulasDatasNovaAula.map(iso => `
     <div data-iso="${iso}" style="border:1.5px solid var(--border);border-radius:8px;padding:10px;">
       <p style="font-size:12px;font-weight:700;color:var(--text);margin:0 0 8px;">${_formatarDataLabel(iso)}</p>
+      <div class="field" style="margin-bottom:8px;">
+        <label style="font-size:11px;">Plano de aula <span style="font-weight:400;color:var(--text-muted);">(opcional)</span></label>
+        <select class="nac-ind-plano" style="width:100%;box-sizing:border-box;"><option value="">Sem plano vinculado</option></select>
+      </div>
       <div class="field" style="margin-bottom:8px;">
         <label style="font-size:11px;">Tema</label>
         <input class="nac-ind-tema" placeholder="Ex: Revolução Industrial" style="width:100%;box-sizing:border-box;">
@@ -2304,6 +2541,9 @@ function _renderFormNovaAulaCal() {
       card.querySelector('.nac-ind-conteudo').value = anterior.conteudo;
       seletor.setSelecionadas(anterior.habilidades);
     }
+    const selPlano = card.querySelector('.nac-ind-plano');
+    selPlano.addEventListener('change', () => _nacPlanoIndividualAlterado(card, selPlano));
+    PlanoVinculoAula.preencherSelect(selPlano, anterior ? anterior.plano : '', false);
   });
 }
 
@@ -2324,12 +2564,14 @@ async function salvarNovaAulaCal() {
     const tema = document.getElementById('nac-tema').value.trim();
     const conteudo = document.getElementById('nac-conteudo').value.trim();
     const habilidades = _nacMesmoBncc ? _nacMesmoBncc.getSelecionadas() : [];
+    const planoId = document.getElementById('nac-plano')?.value || '';
     if (!tema) { alertEl.textContent = 'Informe o tema da aula.'; alertEl.style.display = 'block'; return; }
     _calAulasDatasNovaAula.forEach(iso => {
       bodies.push({
         data: iso, nome: tema, descricao: conteudo, status: 'pendente',
         turma_id: turmaAtiva.id, turma_disciplina_id: turmaDisciplinaAtiva?.id || null,
-        professor_id: profData.id
+        professor_id: profData.id,
+        ...(planoId ? { plano_doc_id: planoId } : {})
       });
       habilidadesPorIndice.push(habilidades);
     });
@@ -2341,11 +2583,13 @@ async function salvarNovaAulaCal() {
       const tema = card.querySelector('.nac-ind-tema').value.trim();
       const conteudo = card.querySelector('.nac-ind-conteudo').value.trim();
       const habilidades = _nacIndBncc[iso] ? _nacIndBncc[iso].getSelecionadas() : [];
+      const planoId = card.querySelector('.nac-ind-plano')?.value || '';
       if (!tema) { algumVazio = true; return; }
       bodies.push({
         data: iso, nome: tema, descricao: conteudo, status: 'pendente',
         turma_id: turmaAtiva.id, turma_disciplina_id: turmaDisciplinaAtiva?.id || null,
-        professor_id: profData.id
+        professor_id: profData.id,
+        ...(planoId ? { plano_doc_id: planoId } : {})
       });
       habilidadesPorIndice.push(habilidades);
     });
@@ -2383,7 +2627,9 @@ async function salvarNovaAulaCal() {
     renderListaAulas();
     atualizarContadorAulas();
   } catch (e) {
-    alertEl.textContent = 'Erro ao criar aula(s). Tente novamente.';
+    alertEl.textContent = /plano_doc_id/i.test(String(e?.message || ''))
+      ? `Erro ao criar aula(s): ${PlanoVinculoAula.mensagemErro(e)}`
+      : 'Erro ao criar aula(s). Tente novamente.';
     alertEl.style.display = 'block';
   } finally {
     btn.disabled = false;
