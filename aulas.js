@@ -1953,6 +1953,233 @@ function calAulasBuscar(termo) {
   _aplicarLayoutGradeAulas();
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SELETOR MÚLTIPLO DE HABILIDADES BNCC (lista suspensa com busca + caixas)
+// Usado no painel "Nova aula" do calendário: no modo "Mesmo conteúdo" e em cada
+// data do modo "Individual por data". As opções vêm do cache de
+// habilidades_planejamento (_habilidadesAulaCarregarCache). Ao digitar, a lista
+// é filtrada por código ou descrição (sem diferenciar acentos/maiúsculas); cada
+// item tem uma caixa de seleção e a lista continua aberta para marcar várias.
+// Teclado: ↓/↑ navegam, Enter marca/desmarca, Esc fecha, Backspace remove a última.
+// ═══════════════════════════════════════════════════════════════════════════
+const BnccMultiSelect = (function () {
+  const instancias = new Set();
+
+  const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  function injetarCss() {
+    if (document.getElementById('bms-css')) return;
+    const st = document.createElement('style');
+    st.id = 'bms-css';
+    st.textContent = `
+      .bms{position:relative;width:100%;box-sizing:border-box;}
+      .bms-box{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:40px;box-sizing:border-box;padding:5px 30px 5px 8px;background:#F8F6FF;border:1.5px solid var(--border);border-radius:8px;cursor:text;transition:border-color .2s;position:relative;}
+      .bms.aberto .bms-box,.bms-box:focus-within{border-color:var(--purple);}
+      .bms .bms-input{flex:1 1 90px;min-width:90px;width:auto;margin:0;padding:4px 2px;border:none;background:transparent;outline:none;box-shadow:none;font-family:'Sora',sans-serif;font-size:13px;color:var(--text);}
+      .bms .bms-input:focus{border:none;}
+      .bms-seta{position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;display:flex;transition:transform .15s;}
+      .bms.aberto .bms-seta{transform:translateY(-50%) rotate(180deg);}
+      .bms-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 5px 3px 9px;border-radius:20px;background:#EEF2FF;color:#3B4FE4;font-size:11px;font-weight:700;font-family:'Space Mono',monospace;}
+      .bms-chip button{border:none;background:none;color:#3B4FE4;cursor:pointer;padding:0;display:flex;align-items:center;}
+      .bms-panel{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:60;background:var(--white);border:1.5px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;}
+      .bms-panel[hidden]{display:none;}
+      .bms-item{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);}
+      .bms-item:last-child{border-bottom:none;}
+      .bms-item:hover,.bms-item.ativo{background:#F0F4FF;}
+      .bms-check{flex:0 0 16px;width:16px;height:16px;margin-top:1px;border:1.5px solid #B8C4EE;border-radius:4px;background:#fff;display:flex;align-items:center;justify-content:center;box-sizing:border-box;}
+      .bms-check svg{display:none;}
+      .bms-item[aria-selected="true"] .bms-check{background:var(--purple);border-color:var(--purple);}
+      .bms-item[aria-selected="true"] .bms-check svg{display:block;}
+      .bms-txt{min-width:0;flex:1;}
+      .bms-cod{display:block;margin-bottom:2px;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:#3B4FE4;}
+      .bms-desc{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;font-size:12px;line-height:1.4;color:var(--text);}
+      .bms-msg{padding:12px;font-size:12px;line-height:1.5;color:var(--text-muted);}
+    `;
+    document.head.appendChild(st);
+  }
+
+  function montar(container, opcoes) {
+    opcoes = opcoes || {};
+    injetarCss();
+    container.classList.add('bms');
+    container.innerHTML = `
+      <div class="bms-box">
+        <span class="bms-chips" style="display:contents;"></span>
+        <input type="text" class="bms-input" placeholder="${esc(opcoes.placeholder || 'Buscar código ou descrição...')}" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Habilidades BNCC">
+        <span class="bms-seta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+      </div>
+      <div class="bms-panel" role="listbox" aria-multiselectable="true" hidden></div>`;
+
+    const box = container.querySelector('.bms-box');
+    const chipsEl = container.querySelector('.bms-chips');
+    const input = container.querySelector('.bms-input');
+    const panel = container.querySelector('.bms-panel');
+
+    let selecionadas = [];   // [{id, codigo, descricao}]
+    let lista = null;        // habilidades cadastradas (null = ainda não carregou)
+    let visiveis = [];       // habilidades listadas no momento (após o filtro)
+    let ativo = -1;          // item destacado pelo teclado
+    let aberto = false;
+    let destruido = false;
+
+    function renderChips() {
+      chipsEl.innerHTML = selecionadas.map(h => `
+        <span class="bms-chip">${esc(h.codigo)}
+          <button type="button" data-rm="${esc(h.id)}" aria-label="Remover ${esc(h.codigo)}">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </span>`).join('');
+    }
+
+    function atualizarMarcas() {
+      panel.querySelectorAll('.bms-item').forEach(it => {
+        const marcada = selecionadas.some(h => String(h.id) === it.dataset.id);
+        it.setAttribute('aria-selected', marcada ? 'true' : 'false');
+      });
+    }
+
+    function renderLista() {
+      if (lista === null) { visiveis = []; panel.innerHTML = '<div class="bms-msg">Carregando habilidades...</div>'; return; }
+      if (!lista.length) {
+        visiveis = [];
+        panel.innerHTML = '<div class="bms-msg">Nenhuma habilidade cadastrada para esta turma. Cadastre em Planejamento → Plano de Curso e Habilidades.</div>';
+        return;
+      }
+      const termo = input.value.trim();
+      const q = norm(termo);
+      visiveis = q ? lista.filter(h => norm(h.codigo).includes(q) || norm(h.descricao).includes(q)) : lista.slice();
+      ativo = q && visiveis.length ? 0 : -1;
+      if (!visiveis.length) {
+        panel.innerHTML = `<div class="bms-msg">Nenhuma habilidade encontrada para "${esc(termo)}".</div>`;
+        return;
+      }
+      panel.innerHTML = visiveis.map((h, i) => `
+        <div class="bms-item${i === ativo ? ' ativo' : ''}" role="option" data-id="${esc(h.id)}" aria-selected="${selecionadas.some(s => String(s.id) === String(h.id))}">
+          <span class="bms-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+          <span class="bms-txt"><span class="bms-cod">${esc(h.codigo || '—')}</span><span class="bms-desc">${esc(h.descricao)}</span></span>
+        </div>`).join('');
+    }
+
+    function realcar(novo) {
+      if (!visiveis.length) return;
+      ativo = Math.max(0, Math.min(novo, visiveis.length - 1));
+      panel.querySelectorAll('.bms-item').forEach((it, i) => it.classList.toggle('ativo', i === ativo));
+      const el = panel.querySelectorAll('.bms-item')[ativo];
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    }
+
+    function alternar(id) {
+      const sid = String(id);
+      const idx = selecionadas.findIndex(h => String(h.id) === sid);
+      if (idx >= 0) {
+        selecionadas.splice(idx, 1);
+      } else {
+        const h = (lista || []).find(x => String(x.id) === sid);
+        if (!h) return;
+        selecionadas.push({ id: h.id, codigo: h.codigo, descricao: h.descricao });
+      }
+      renderChips();
+      atualizarMarcas();
+    }
+
+    function remover(id) {
+      const sid = String(id);
+      selecionadas = selecionadas.filter(h => String(h.id) !== sid);
+      renderChips();
+      atualizarMarcas();
+    }
+
+    async function abrir() {
+      if (aberto || destruido) return;
+      aberto = true;
+      container.classList.add('aberto');
+      input.setAttribute('aria-expanded', 'true');
+      panel.hidden = false;
+      renderLista();
+      panel.scrollIntoView({ block: 'nearest' });
+      // Sempre relê do cache compartilhado: reflete habilidades recém-cadastradas
+      try { lista = await _habilidadesAulaCarregarCache(); } catch (_) { lista = lista || []; }
+      if (destruido || !aberto) return;
+      renderLista();
+      panel.scrollIntoView({ block: 'nearest' });
+    }
+
+    function fechar() {
+      if (!aberto) return;
+      aberto = false;
+      container.classList.remove('aberto');
+      input.setAttribute('aria-expanded', 'false');
+      panel.hidden = true;
+      input.value = '';
+    }
+
+    // ── Eventos ──────────────────────────────────────────────────────────────
+    box.addEventListener('click', e => {
+      if (e.target.closest('[data-rm]')) return;
+      input.focus();
+      abrir();
+    });
+    chipsEl.addEventListener('click', e => {
+      const b = e.target.closest('[data-rm]');
+      if (!b) return;
+      e.stopPropagation();
+      remover(b.dataset.rm);
+    });
+    panel.addEventListener('click', e => {
+      const it = e.target.closest('.bms-item');
+      if (!it) return;
+      alternar(it.dataset.id);
+      input.focus();
+    });
+    input.addEventListener('focus', abrir);
+    input.addEventListener('input', () => { if (!aberto) abrir(); else renderLista(); });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); if (!aberto) abrir(); else realcar(ativo + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); if (aberto) realcar(ativo - 1); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (aberto && visiveis[ativo]) alternar(visiveis[ativo].id); }
+      else if (e.key === 'Escape') { if (aberto) { e.preventDefault(); e.stopPropagation(); fechar(); } }
+      else if (e.key === 'Tab') { fechar(); }
+      else if (e.key === 'Backspace' && !input.value && selecionadas.length) { remover(selecionadas[selecionadas.length - 1].id); }
+    });
+
+    const api = {
+      el: container,
+      fechar,
+      getSelecionadas: () => selecionadas.map(h => ({ ...h })),
+      setSelecionadas(arr) {
+        selecionadas = (arr || []).map(h => ({ id: h.id, codigo: h.codigo, descricao: h.descricao }));
+        renderChips();
+        atualizarMarcas();
+      },
+      limpar() { selecionadas = []; renderChips(); atualizarMarcas(); input.value = ''; fechar(); },
+      destruir() { destruido = true; instancias.delete(api); container.innerHTML = ''; container.classList.remove('bms', 'aberto'); },
+    };
+    instancias.add(api);
+    renderChips();
+    return api;
+  }
+
+  // Fecha a lista ao clicar fora (captura: roda antes dos handlers dos itens)
+  document.addEventListener('click', e => {
+    instancias.forEach(i => {
+      if (!document.body.contains(i.el)) { instancias.delete(i); return; }
+      if (!i.el.contains(e.target)) i.fechar();
+    });
+  }, true);
+
+  return { montar };
+})();
+window.BnccMultiSelect = BnccMultiSelect;
+
+let _nacMesmoBncc = null; // seletor do modo "Mesmo conteúdo"
+let _nacIndBncc = {};     // iso -> seletor de cada data (modo "Individual por data")
+
+function _nacLimparSeletoresIndividual() {
+  Object.values(_nacIndBncc).forEach(s => s.destruir());
+  _nacIndBncc = {};
+}
+
 function abrirPainelNovaAulaCal() {
   if (_calAulasCliqueTimer) { clearTimeout(_calAulasCliqueTimer); _calAulasCliqueTimer = null; _calAulasCliqueIso = null; }
   _calAulasDatasNovaAula = [..._calAulasDatasSel].sort();
@@ -1966,6 +2193,17 @@ function abrirPainelNovaAulaCal() {
   setModoNovaAulaCal('mesmo');
   renderCalendarioAulas();
   _renderChipsNovaAulaCal();
+
+  // Seletor de habilidades BNCC: monta uma vez e começa sempre vazio. O formulário
+  // individual é zerado para não herdar o que ficou de uma criação anterior.
+  const boxMesmo = document.getElementById('nac-bncc-box');
+  if (boxMesmo) {
+    if (!_nacMesmoBncc || _nacMesmoBncc.el !== boxMesmo) _nacMesmoBncc = BnccMultiSelect.montar(boxMesmo);
+    _nacMesmoBncc.limpar();
+  }
+  _nacLimparSeletoresIndividual();
+  const formInd = document.getElementById('painel-nova-aula-form-individual');
+  if (formInd) formInd.innerHTML = '';
 }
 
 function fecharPainelNovaAulaCal() {
@@ -1974,6 +2212,8 @@ function fecharPainelNovaAulaCal() {
   document.getElementById('cal-aulas-dia-header').style.display = 'flex';
   document.getElementById('cal-aulas-dia-lista').style.display = 'flex';
   _calAulasDatasNovaAula = [];
+  if (_nacMesmoBncc) _nacMesmoBncc.limpar();
+  _nacLimparSeletoresIndividual();
   renderCalendarioAulas();
   _renderPainelAulasCal();
 }
@@ -2015,19 +2255,56 @@ function _renderFormNovaAulaCal() {
   if (_calAulasModo !== 'individual') return;
   const wrap = document.getElementById('painel-nova-aula-form-individual');
   if (!wrap) return;
+  // Guarda o que já foi preenchido para não perder ao marcar/desmarcar datas
+  // ou ao alternar entre "Mesmo conteúdo" e "Individual por data".
+  const estado = {};
+  wrap.querySelectorAll('[data-iso]').forEach(card => {
+    const iso = card.dataset.iso;
+    estado[iso] = {
+      tema: card.querySelector('.nac-ind-tema')?.value || '',
+      conteudo: card.querySelector('.nac-ind-conteudo')?.value || '',
+      habilidades: _nacIndBncc[iso] ? _nacIndBncc[iso].getSelecionadas() : [],
+    };
+  });
+  _nacLimparSeletoresIndividual();
+
   if (!_calAulasDatasNovaAula.length) {
     wrap.innerHTML = `<span style="font-size:11px;color:var(--text-muted);">Marque ao menos uma data.</span>`;
     return;
   }
+
+  // Cada campo fica dentro de .field (+ label): é daí que vem o estilo dos
+  // inputs do dashboard — sem esse wrapper os campos apareciam sem CSS.
   wrap.innerHTML = _calAulasDatasNovaAula.map(iso => `
     <div data-iso="${iso}" style="border:1.5px solid var(--border);border-radius:8px;padding:10px;">
-      <p style="font-size:12px;font-weight:700;color:var(--text);margin:0 0 6px;">${_formatarDataLabel(iso)}</p>
-      <input class="nac-ind-tema" placeholder="Tema" style="width:100%;box-sizing:border-box;margin-bottom:6px;">
-      <textarea class="nac-ind-conteudo" rows="2" placeholder="Conteúdo, estratégias, recursos..."
-        style="width:100%;padding:8px 10px;background:#F8F6FF;border:1.5px solid var(--border);border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);outline:none;resize:vertical;box-sizing:border-box;margin-bottom:6px;"></textarea>
-      <input class="nac-ind-bncc" placeholder="Código(s) BNCC, separados por vírgula (opcional)" style="width:100%;box-sizing:border-box;">
+      <p style="font-size:12px;font-weight:700;color:var(--text);margin:0 0 8px;">${_formatarDataLabel(iso)}</p>
+      <div class="field" style="margin-bottom:8px;">
+        <label style="font-size:11px;">Tema</label>
+        <input class="nac-ind-tema" placeholder="Ex: Revolução Industrial" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div class="field" style="margin-bottom:8px;">
+        <label style="font-size:11px;">Conteúdo</label>
+        <textarea class="nac-ind-conteudo" rows="2" placeholder="Conteúdos, estratégias, recursos..."
+          style="width:100%;padding:9px 10px;background:#F8F6FF;border:1.5px solid var(--border);border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);outline:none;resize:vertical;box-sizing:border-box;"></textarea>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label style="font-size:11px;">Habilidade BNCC <span style="font-weight:400;color:var(--text-muted);">(opcional)</span></label>
+        <div class="nac-ind-bncc-box"></div>
+      </div>
     </div>
   `).join('');
+
+  wrap.querySelectorAll('[data-iso]').forEach(card => {
+    const iso = card.dataset.iso;
+    const seletor = BnccMultiSelect.montar(card.querySelector('.nac-ind-bncc-box'));
+    _nacIndBncc[iso] = seletor;
+    const anterior = estado[iso];
+    if (anterior) {
+      card.querySelector('.nac-ind-tema').value = anterior.tema;
+      card.querySelector('.nac-ind-conteudo').value = anterior.conteudo;
+      seletor.setSelecionadas(anterior.habilidades);
+    }
+  });
 }
 
 async function salvarNovaAulaCal() {
@@ -2041,12 +2318,12 @@ async function salvarNovaAulaCal() {
   const profData = JSON.parse(sessionStorage.getItem('prof_data') || '{}');
   const btn = document.getElementById('btn-salvar-nova-aula-cal');
   const bodies = [];
-  const bnccTextoPorIndice = []; // mesmo índice de bodies — resolvido após o insert
+  const habilidadesPorIndice = []; // mesmo índice de bodies — vinculadas após o insert
 
   if (_calAulasModo === 'mesmo') {
     const tema = document.getElementById('nac-tema').value.trim();
     const conteudo = document.getElementById('nac-conteudo').value.trim();
-    const bncc = document.getElementById('nac-bncc').value.trim();
+    const habilidades = _nacMesmoBncc ? _nacMesmoBncc.getSelecionadas() : [];
     if (!tema) { alertEl.textContent = 'Informe o tema da aula.'; alertEl.style.display = 'block'; return; }
     _calAulasDatasNovaAula.forEach(iso => {
       bodies.push({
@@ -2054,7 +2331,7 @@ async function salvarNovaAulaCal() {
         turma_id: turmaAtiva.id, turma_disciplina_id: turmaDisciplinaAtiva?.id || null,
         professor_id: profData.id
       });
-      bnccTextoPorIndice.push(bncc);
+      habilidadesPorIndice.push(habilidades);
     });
   } else {
     const cards = document.querySelectorAll('#painel-nova-aula-form-individual [data-iso]');
@@ -2063,14 +2340,14 @@ async function salvarNovaAulaCal() {
       const iso = card.dataset.iso;
       const tema = card.querySelector('.nac-ind-tema').value.trim();
       const conteudo = card.querySelector('.nac-ind-conteudo').value.trim();
-      const bncc = card.querySelector('.nac-ind-bncc').value.trim();
+      const habilidades = _nacIndBncc[iso] ? _nacIndBncc[iso].getSelecionadas() : [];
       if (!tema) { algumVazio = true; return; }
       bodies.push({
         data: iso, nome: tema, descricao: conteudo, status: 'pendente',
         turma_id: turmaAtiva.id, turma_disciplina_id: turmaDisciplinaAtiva?.id || null,
         professor_id: profData.id
       });
-      bnccTextoPorIndice.push(bncc);
+      habilidadesPorIndice.push(habilidades);
     });
     if (algumVazio || !bodies.length) {
       alertEl.textContent = 'Informe o tema de cada data.';
@@ -2086,13 +2363,13 @@ async function salvarNovaAulaCal() {
     const novas = res.length ? res : bodies.map((b, i) => ({ ...b, id: `${Date.now()}_${i}` }));
     novas.forEach(n => { aulasTurma.push(n); chamadaCacheSet(n.id, false); });
 
-    // Resolve e vincula habilidades BNCC informadas por código (opcional)
+    // Vincula as habilidades BNCC escolhidas no seletor (opcional)
     for (let i = 0; i < novas.length; i++) {
-      const idsHabilidades = await _resolverHabilidadesTextoParaIds(bnccTextoPorIndice[i]);
-      if (idsHabilidades.length) {
+      const escolhidas = habilidadesPorIndice[i] || [];
+      if (escolhidas.length) {
         await api('aula_habilidades', {
           method: 'POST',
-          body: JSON.stringify(idsHabilidades.map(id => ({ aula_id: novas[i].id, habilidade_id: id }))),
+          body: JSON.stringify(escolhidas.map(h => ({ aula_id: novas[i].id, habilidade_id: h.id }))),
         });
       }
     }
