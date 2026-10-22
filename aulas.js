@@ -1119,6 +1119,23 @@ const PlanoVinculoAula = (function () {
     return String(v).trim();
   }
 
+  // Códigos de habilidade do plano, só para mostrar nos cartões do seletor
+  function _codigosExibicao(bruto) {
+    const out = [];
+    (function col(x) {
+      x = _json(x);
+      if (x == null) return;
+      if (Array.isArray(x)) { x.forEach(col); return; }
+      if (typeof x === 'object') { const c = x.codigo ?? x.code ?? x.cod; if (c) out.push(String(c).trim()); return; }
+      String(x).split(/[\n;,]+/).forEach(t => {
+        t = t.trim(); if (!t) return;
+        const m = t.match(/\b(?:EI|EF|EM)\d{2,4}[A-Z]{2,3}\d{2,3}\b/gi);
+        if (m) m.forEach(c => out.push(c.toUpperCase())); else if (t.length <= 20) out.push(t);
+      });
+    })(bruto);
+    return [...new Set(out)];
+  }
+
   async function carregar(forcar) {
     const prof = _profId();
     const fresco = _lista && _prof === prof && (Date.now() - _quando) < TTL_MS;
@@ -1140,7 +1157,7 @@ const PlanoVinculoAula = (function () {
       _falhou = false;
       _prof = prof;
       _quando = Date.now();
-      _lista = rows.map(r => ({ id: r.id, tema: _txt(r.tema), turmas: _txt(r.turmas), habilidades: r.habilidades }));
+      _lista = rows.map(r => ({ id: r.id, tema: _txt(r.tema), turmas: _txt(r.turmas), habilidades: r.habilidades, codigos: _codigosExibicao(r.habilidades) }));
       return _lista;
     })();
     try { return await _promessa; } finally { _promessa = null; }
@@ -1171,20 +1188,215 @@ const PlanoVinculoAula = (function () {
   // selecionado — assim salvar rápido nunca desvincula a aula por engano.
   async function preencherSelect(el, valor, forcar) {
     if (!el) return;
+    melhorar(el);
+    el._pvW.fechar();
     const tok = (el._pvTok = (el._pvTok || 0) + 1);
     const v = valor == null ? '' : String(valor);
     const fresco = _lista && _prof === _profId() && (Date.now() - _quando) < TTL_MS;
-    if (fresco && !forcar) { el.innerHTML = opcoesHtml(v); el.value = v; return; }
+    if (fresco && !forcar) { el.innerHTML = opcoesHtml(v); el.value = v; el._pvW.atualizar(); return; }
     el.innerHTML = v
       ? `<option value="">Sem plano vinculado</option><option value="${esc(v)}" selected>Carregando plano...</option>`
       : '<option value="">Carregando planos...</option>';
     el.value = v;
+    el._pvW.atualizar();
     await carregar(forcar);
     if (el._pvTok !== tok) return; // outro preenchimento mais novo assumiu
     const atual = el.value; // se o usuário já escolheu algo durante o carregamento, respeita
     el.innerHTML = opcoesHtml(atual || v);
     el.value = atual || v;
+    el._pvW.atualizar();
   }
+
+  // ── Seletor visual (busca + cartões) sobre o <select> ─────────────────────
+  // O <select> continua no DOM, oculto, como fonte da verdade: .value e o evento
+  // 'change' seguem funcionando para todo o código de salvar/preencher.
+  const _norm = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const _widgets = new Set();
+
+  function _injetarCss() {
+    if (document.getElementById('pv-css')) return;
+    const st = document.createElement('style');
+    st.id = 'pv-css';
+    st.textContent = `
+      .pv{position:relative;width:100%;box-sizing:border-box;}
+      .pv-linha{display:flex;gap:6px;align-items:stretch;}
+      .pv-btn{flex:1;min-width:0;display:flex;align-items:center;gap:8px;min-height:44px;padding:7px 10px;box-sizing:border-box;text-align:left;background:#F8F6FF;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Sora',sans-serif;color:var(--text);transition:border-color .2s;}
+      .pv.aberto .pv-btn,.pv-btn:focus-visible{border-color:var(--purple);outline:none;}
+      .pv-btn-txt{flex:1;min-width:0;display:block;}
+      .pv-t{display:block;font-size:13px;font-weight:700;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+      .pv-s{display:block;margin-top:1px;font-size:11px;color:var(--text-muted);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+      .pv-vazio{font-size:13px;color:var(--text-muted);}
+      .pv-seta{flex:0 0 auto;color:var(--text-muted);display:flex;transition:transform .15s;}
+      .pv.aberto .pv-seta{transform:rotate(180deg);}
+      .pv-x{flex:0 0 44px;border:1.5px solid var(--border);background:#fff;border-radius:8px;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+      .pv-x[hidden]{display:none;}
+      .pv-panel{margin-top:6px;background:var(--white);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.08);}
+      .pv-panel[hidden]{display:none;}
+      .pv-busca{display:block;width:100%;box-sizing:border-box;margin:0;padding:11px 12px;border:none;border-bottom:1px solid var(--border);border-radius:0;background:#fff;outline:none;box-shadow:none;font-family:'Sora',sans-serif;font-size:13px;color:var(--text);}
+      .pv-lista{max-height:min(46vh,280px);overflow-y:auto;overscroll-behavior:contain;}
+      .pv-item{display:block;width:100%;box-sizing:border-box;text-align:left;padding:10px 12px;border:none;border-bottom:1px solid var(--border);background:#fff;cursor:pointer;font-family:'Sora',sans-serif;color:var(--text);}
+      .pv-item:last-child{border-bottom:none;}
+      .pv-item:hover,.pv-item.ativo{background:#F0F4FF;}
+      .pv-item[aria-selected="true"]{background:#EEF2FF;box-shadow:inset 3px 0 0 var(--purple);}
+      .pv-item-t{display:block;font-size:13px;font-weight:700;line-height:1.35;overflow-wrap:anywhere;}
+      .pv-item-m{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;margin-top:4px;}
+      .pv-turmas{font-size:11px;color:var(--text-muted);}
+      .pv-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:#DCFCE7;color:#166534;}
+      .pv-hab{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:#EEF2FF;color:#3B4FE4;}
+      .pv-msg{padding:14px 12px;font-size:12px;line-height:1.5;color:var(--text-muted);}
+      .pv-item-limpar{color:var(--text-muted);font-size:12px;font-weight:600;}
+    `;
+    document.head.appendChild(st);
+  }
+
+  function _daTurmaAtiva(p) {
+    const n = _norm(typeof turmaAtiva !== 'undefined' && turmaAtiva ? turmaAtiva.nome : '').replace(/\s+/g, '');
+    return !!n && _norm(p.turmas).replace(/\s+/g, '').includes(n);
+  }
+
+  function melhorar(sel) {
+    if (!sel) return null;
+    if (sel._pvW) return sel._pvW;
+    _injetarCss();
+    sel.style.display = 'none';
+    const wrap = document.createElement('div');
+    wrap.className = 'pv';
+    wrap.innerHTML = `
+      <div class="pv-linha">
+        <button type="button" class="pv-btn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="pv-btn-txt"></span>
+          <span class="pv-seta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+        </button>
+        <button type="button" class="pv-x" aria-label="Remover plano vinculado" title="Remover plano" hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="pv-panel" hidden>
+        <input type="search" class="pv-busca" placeholder="Buscar por tema, turma ou habilidade..." autocomplete="off" aria-label="Buscar plano de aula">
+        <div class="pv-lista" role="listbox"></div>
+      </div>`;
+    sel.insertAdjacentElement('afterend', wrap);
+
+    const btn = wrap.querySelector('.pv-btn');
+    const txt = wrap.querySelector('.pv-btn-txt');
+    const btnX = wrap.querySelector('.pv-x');
+    const panel = wrap.querySelector('.pv-panel');
+    const busca = wrap.querySelector('.pv-busca');
+    const lista = wrap.querySelector('.pv-lista');
+    let visiveis = [];
+    let ativo = -1;
+    let aberto = false;
+
+    function atualizar() {
+      const v = sel.value;
+      const p = v ? (_lista || []).find(x => String(x.id) === String(v)) : null;
+      if (p) {
+        txt.innerHTML = `<span class="pv-t">${esc(p.tema || '(sem tema)')}</span>` + (p.turmas ? `<span class="pv-s">${esc(p.turmas)}</span>` : '');
+      } else {
+        const rotulo = sel.selectedOptions[0]?.textContent || 'Sem plano vinculado';
+        txt.innerHTML = v ? `<span class="pv-t">${esc(rotulo)}</span>` : `<span class="pv-vazio">${esc(rotulo === 'Sem plano vinculado' ? 'Escolher plano de aula...' : rotulo)}</span>`;
+      }
+      btnX.hidden = !v;
+      if (aberto) renderLista();
+    }
+
+    function renderLista() {
+      const todos = (_lista || []).slice().sort((a, b) => (_daTurmaAtiva(b) ? 1 : 0) - (_daTurmaAtiva(a) ? 1 : 0));
+      const q = _norm(busca.value.trim());
+      visiveis = q ? todos.filter(p => _norm(p.tema + ' ' + p.turmas + ' ' + (p.codigos || []).join(' ')).includes(q)) : todos;
+      ativo = q && visiveis.length ? 0 : -1;
+      const atual = String(sel.value || '');
+      let h = '';
+      if (atual) h += `<button type="button" class="pv-item pv-item-limpar" data-id="">Sem plano vinculado</button>`;
+      if (!visiveis.length) {
+        h += `<div class="pv-msg">${(_lista || []).length
+          ? `Nenhum plano encontrado para "${esc(busca.value.trim())}".`
+          : 'Você ainda não tem planos de aula. Crie um em Planejamento → Plano de aula.'}</div>`;
+      } else {
+        h += visiveis.map((p, i) => {
+          const cods = p.codigos || [];
+          return `<button type="button" class="pv-item${i === ativo ? ' ativo' : ''}" role="option" data-id="${esc(p.id)}" aria-selected="${String(p.id) === atual}">
+            <span class="pv-item-t">${esc(p.tema || '(sem tema)')}</span>
+            <span class="pv-item-m">
+              ${_daTurmaAtiva(p) ? '<span class="pv-tag">Desta turma</span>' : ''}
+              ${p.turmas ? `<span class="pv-turmas">${esc(p.turmas)}</span>` : ''}
+              ${cods.slice(0, 3).map(c => `<span class="pv-hab">${esc(c)}</span>`).join('')}
+              ${cods.length > 3 ? `<span class="pv-turmas">+${cods.length - 3}</span>` : ''}
+            </span>
+          </button>`;
+        }).join('');
+      }
+      lista.innerHTML = h;
+    }
+
+    function abrir() {
+      if (aberto) return;
+      aberto = true;
+      wrap.classList.add('aberto');
+      btn.setAttribute('aria-expanded', 'true');
+      panel.hidden = false;
+      busca.value = '';
+      renderLista();
+      // Planos recém-criados aparecem sem precisar reabrir o formulário
+      carregar(false).then(() => { if (aberto) { renderLista(); atualizar(); } });
+      busca.focus({ preventScroll: true });
+      panel.scrollIntoView({ block: 'nearest' });
+    }
+    function fechar() {
+      if (!aberto) return;
+      aberto = false;
+      wrap.classList.remove('aberto');
+      btn.setAttribute('aria-expanded', 'false');
+      panel.hidden = true;
+    }
+    function escolher(id) {
+      const novo = id == null ? '' : String(id);
+      const mudou = String(sel.value || '') !== novo;
+      if (mudou) {
+        if (novo && ![...sel.options].some(o => o.value === novo)) return;
+        sel.value = novo;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      atualizar();
+      fechar();
+      btn.focus({ preventScroll: true });
+    }
+    function realcar(n) {
+      if (!visiveis.length) return;
+      ativo = Math.max(0, Math.min(n, visiveis.length - 1));
+      lista.querySelectorAll('.pv-item[role="option"]').forEach((it, i) => it.classList.toggle('ativo', i === ativo));
+      const el = lista.querySelectorAll('.pv-item[role="option"]')[ativo];
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    }
+
+    btn.addEventListener('click', () => (aberto ? fechar() : abrir()));
+    btnX.addEventListener('click', () => escolher(''));
+    busca.addEventListener('input', renderLista);
+    busca.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); realcar(ativo + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); realcar(ativo - 1); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (visiveis[ativo]) escolher(visiveis[ativo].id); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fechar(); btn.focus({ preventScroll: true }); }
+    });
+    lista.addEventListener('click', e => {
+      const it = e.target.closest('.pv-item');
+      if (it) escolher(it.dataset.id);
+    });
+
+    const w = { el: wrap, atualizar, fechar };
+    _widgets.add(w);
+    sel._pvW = w;
+    atualizar();
+    return w;
+  }
+
+  // Clique fora fecha qualquer seletor aberto
+  document.addEventListener('click', e => {
+    _widgets.forEach(w => {
+      if (!document.body.contains(w.el)) { _widgets.delete(w); return; }
+      if (!w.el.contains(e.target)) w.fechar();
+    });
+  }, true);
 
   // ── habilidades do plano → habilidades cadastradas na turma (habilidades_planejamento) ──
   const _normCod = s => String(s ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -1255,7 +1467,7 @@ const PlanoVinculoAula = (function () {
     return m || 'Tente novamente.';
   }
 
-  return { carregar, preencherSelect, dadosDoPlano, avisar, mensagemErro, invalidar() { _lista = null; _quando = 0; } };
+  return { carregar, preencherSelect, melhorar, dadosDoPlano, avisar, mensagemErro, invalidar() { _lista = null; _quando = 0; } };
 })();
 window.PlanoVinculoAula = PlanoVinculoAula;
 
