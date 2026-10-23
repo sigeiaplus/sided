@@ -804,7 +804,7 @@
       .cal-aulas-wrap { flex-direction: column; flex-wrap: nowrap !important; align-items: stretch; }
       .cal-aulas-cal { position: static; width: 100% !important; }
       .cal-aulas-side { flex: 0 0 auto !important; width: 100%; }
-      #cal-aulas-grid .cal-aulas-dia { padding: 9px 0 !important; font-size: 13px !important; }
+      #cal-aulas-grid .cal-aulas-dia { font-size: 14px !important; }
       .cal-aulas-cards { grid-template-columns: 1fr !important; }
     }
 
@@ -1124,12 +1124,6 @@
               <button class="chip orange" id="aulas-chip-2" data-tri="2" onclick="filtrarAulasTri(this)" style="font-size:11px;padding:4px 10px;">2º Tri</button>
               <button class="chip orange" id="aulas-chip-3" data-tri="3" onclick="filtrarAulasTri(this)" style="font-size:11px;padding:4px 10px;">3º Tri</button>
             </div>
-            <!-- Ordenação -->
-            <button id="btn-ordem-aulas" onclick="toggleOrdemAulas()" title="Ordenar por data"
-              style="display:flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px solid var(--border);border-radius:20px;background:#F8F6FF;font-family:'Sora',sans-serif;font-size:11px;font-weight:600;color:var(--text);cursor:pointer;transition:all .15s;">
-              <svg id="ico-ordem-aulas" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/></svg>
-              <span id="label-ordem-aulas">Mais recente</span>
-            </button>
           </div>
         </div>
 
@@ -1188,22 +1182,24 @@
         <div class="cal-aulas-wrap" style="background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:16px;flex-wrap:wrap;">
 
           <!-- Mini calendário -->
-          <div class="cal-aulas-cal" style="width:220px;flex-shrink:0;">
+          <div class="cal-aulas-cal" style="width:460px;max-width:100%;flex-shrink:0;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-              <button onclick="calAulasMudarMes(-1)" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:2px;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+              <button id="cal-aulas-prev" onclick="calAulasMudarMes(-1)" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:6px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
               </button>
-              <span id="cal-aulas-mes-ano" style="font-size:13px;font-weight:700;color:var(--text);">--</span>
-              <button onclick="calAulasMudarMes(1)" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:2px;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              <span id="cal-aulas-mes-ano" style="font-size:17px;font-weight:700;color:var(--text);">--</span>
+              <button id="cal-aulas-next" onclick="calAulasMudarMes(1)" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:6px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
             </div>
-            <div id="cal-aulas-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-bottom:10px;"></div>
-            <div style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--text-muted);">
-              <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#22C55E;margin-right:5px;"></span>Lecionada</span>
-              <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#F59E0B;margin-right:5px;"></span>Pendente</span>
-              <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#DC2626;margin-right:5px;"></span>Feriado</span>
-              <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#9CA3AF;margin-right:5px;"></span>Recesso</span>
+            <div id="cal-aulas-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center;margin-bottom:12px;"></div>
+            <div id="cal-aulas-aviso" style="display:none;font-size:12px;color:var(--text-muted);background:#F8F6FF;border-radius:8px;padding:10px 12px;margin-bottom:10px;line-height:1.5;"></div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--text-muted);">
+              <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#22C55E;margin-right:5px;"></span>Lecionada</span>
+              <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#F59E0B;margin-right:5px;"></span>Pendente</span>
+              <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#3B82F6;margin-right:5px;"></span>Futura</span>
+              <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#DC2626;margin-right:5px;"></span>Feriado</span>
+              <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#9CA3AF;margin-right:5px;"></span>Recesso</span>
             </div>
             <div style="font-size:10px;color:var(--text-muted);line-height:1.4;margin-top:10px;">Dois cliques rápidos em uma data adicionam (ou removem) à seleção.</div>
           </div>
@@ -1237,7 +1233,7 @@
             <!-- Painel de criação (escondido por padrão) -->
             <div id="painel-nova-aula-cal" style="display:none;flex-direction:column;gap:10px;">
               <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:13px;font-weight:700;color:var(--text);">Nova aula</span>
+                <span id="painel-nova-aula-titulo" style="font-size:13px;font-weight:700;color:var(--text);">Nova aula</span>
                 <button onclick="fecharPainelNovaAulaCal()" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;background:none;border:1.5px solid var(--border);font-family:'Sora',sans-serif;font-size:11px;color:var(--text-muted);cursor:pointer;">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   Cancelar
@@ -1247,12 +1243,16 @@
               <div id="painel-nova-aula-chips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
               <div id="painel-nova-aula-alert" style="display:none;font-size:12px;color:#B91C1C;background:#FEE2E2;padding:8px 10px;border-radius:8px;"></div>
 
-              <div style="display:flex;background:#F1EEFB;border-radius:8px;padding:3px;">
+              <div id="painel-nova-aula-modos" style="display:flex;background:#F1EEFB;border-radius:8px;padding:3px;">
                 <button id="btn-modo-mesmo-conteudo" onclick="setModoNovaAulaCal('mesmo')" style="flex:1;padding:7px;border-radius:6px;background:var(--purple);color:#fff;border:none;font-family:'Sora',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Mesmo conteúdo</button>
                 <button id="btn-modo-individual" onclick="setModoNovaAulaCal('individual')" style="flex:1;padding:7px;border-radius:6px;background:none;border:none;font-family:'Sora',sans-serif;font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;">Individual por data</button>
               </div>
 
               <div id="painel-nova-aula-form-mesmo" style="display:flex;flex-direction:column;gap:10px;">
+                <div id="nac-campo-disciplina" class="field" style="display:none;">
+                  <label style="font-size:11px;">Disciplina</label>
+                  <select id="nac-disciplina" style="width:100%;box-sizing:border-box;"><option value="">Selecione a disciplina...</option></select>
+                </div>
                 <div class="field">
                   <label style="font-size:11px;">Plano de aula <span style="font-weight:400;color:var(--text-muted);">(opcional)</span></label>
                   <select id="nac-plano" onchange="nacPlanoMesmoAlterado(this)" style="width:100%;box-sizing:border-box;">

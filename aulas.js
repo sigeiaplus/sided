@@ -15,7 +15,7 @@ function filtrarAulasDiaSem(dia, btn) {
     c.style.color = ativo ? '#fff' : 'var(--text)';
     c.style.borderColor = ativo ? 'var(--purple)' : 'var(--border)';
   });
-  renderListaAulas();
+  _calAulasAplicarFiltro();
 }
 window.filtrarAulasDiaSem = filtrarAulasDiaSem;
 
@@ -76,7 +76,7 @@ function filtrarAulasDisc(disc, btn) {
     c.style.color = ativo ? '#fff' : (c.id === 'chip-disc-todas' ? 'var(--purple)' : 'var(--text)');
     c.style.borderColor = ativo ? 'var(--purple)' : 'var(--border)';
   });
-  renderListaAulas();
+  _calAulasAplicarFiltro();
 }
 
 let aulasOrdemDesc = true;
@@ -89,7 +89,7 @@ function filtrarAulasTipo(el) {
     if (chip) chip.classList.remove('active');
   });
   el.classList.add('active');
-  renderListaAulas();
+  _calAulasAplicarFiltro();
 }
 
 // ------------------------------------------------------------
@@ -157,25 +157,6 @@ function trimestreDeAula(dataISO) {
   return 0;
 }
 
-function toggleOrdemAulas() {
-  aulasOrdemDesc = !aulasOrdemDesc;
-  const ico = document.getElementById('ico-ordem-aulas');
-  const label = document.getElementById('label-ordem-aulas');
-  const btn = document.getElementById('btn-ordem-aulas');
-  if (aulasOrdemDesc) {
-    ico.innerHTML = '<line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>';
-    label.textContent = 'Mais recente';
-    btn.style.borderColor = 'var(--border)';
-    btn.style.color = 'var(--text)';
-  } else {
-    ico.innerHTML = '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>';
-    label.textContent = 'Mais antigo';
-    btn.style.borderColor = 'var(--purple)';
-    btn.style.color = 'var(--purple)';
-  }
-  renderListaAulas();
-}
-
 function filtrarAulasTri(el) {
   if (el) {
     aulasTriFiltro = el.dataset.tri;
@@ -185,7 +166,7 @@ function filtrarAulasTri(el) {
     });
     el.classList.add('active');
   }
-  renderListaAulas();
+  _calAulasAplicarFiltro();
   atualizarContadorAulas();
 }
 
@@ -659,10 +640,10 @@ async function criarAulaParaData() {
 window.editarAula = function(aulaId) {
   const aula = aulasTurma.find(a => String(a.id) === String(aulaId));
   if (aula) {
-    abrirModalAula(aula);
+    abrirPainelEditarAulaCal(aula);
   } else {
     api(`aulas?id=eq.${aulaId}&select=*`).then(res => {
-      if (res && res[0]) abrirModalAula(res[0]);
+      if (res && res[0]) abrirPainelEditarAulaCal(res[0]);
     });
   }
 };
@@ -2148,18 +2129,36 @@ async function renderCalendarioAulas() {
   const mes = _calAulasRef.getMonth();
   label.textContent = `${MESES_PT[mes]} ${ano}`;
 
-  const statusPorData = _calAulasStatusPorData();
+  const ctx = _calAulasContexto();
+  const statusPorData = ctx.porData;
   const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
   const totalDias = new Date(ano, mes + 1, 0).getDate();
 
+  // Setas: com filtro ativo pulam para o próximo mês que tem dias visíveis
+  const ym = _calAulasYM(ano, mes);
+  const btnPrev = document.getElementById('cal-aulas-prev');
+  const btnNext = document.getElementById('cal-aulas-next');
+  const semAnt = !!ctx.meses && !ctx.meses.some(k => k < ym);
+  const semProx = !!ctx.meses && !ctx.meses.some(k => k > ym);
+  if (btnPrev) { btnPrev.style.opacity = semAnt ? '0.25' : '1'; btnPrev.style.pointerEvents = semAnt ? 'none' : 'auto'; }
+  if (btnNext) { btnNext.style.opacity = semProx ? '0.25' : '1'; btnNext.style.pointerEvents = semProx ? 'none' : 'auto'; }
+  const aviso = document.getElementById('cal-aulas-aviso');
+  if (aviso) {
+    const vazio = !!ctx.meses && ctx.meses.length === 0;
+    aviso.style.display = vazio ? 'block' : 'none';
+    aviso.textContent = vazio ? 'Nenhum dia corresponde aos filtros ativos.' : '';
+  }
+
   let html = ['D','S','T','Q','Q','S','S'].map(d =>
-    `<span style="font-size:10px;font-weight:700;color:var(--text-muted);">${d}</span>`
+    `<span style="font-size:12px;font-weight:700;color:var(--text-muted);">${d}</span>`
   ).join('');
 
   for (let i = 0; i < primeiroDiaSemana; i++) html += '<span></span>';
 
   for (let dia = 1; dia <= totalDias; dia++) {
     const iso = `${ano}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    // Dia fora do filtro: célula em branco (sem número, sem clique)
+    if (!ctx.diaVisivel(iso)) { html += '<span></span>'; continue; }
     const st = statusPorData[iso];
     const selecionado = _calAulasDatasSel.includes(iso);
     const marcado = _calAulasDatasNovaAula.includes(iso);
@@ -2168,15 +2167,104 @@ async function renderCalendarioAulas() {
     // Aula lançada tem prioridade visual; senão, mostra feriado/recesso do calendário escolar
     if (st?.lecionada) { bg = '#DCFCE7'; color = '#166534'; }
     else if (st?.pendente) { bg = '#FEF3C7'; color = '#92400E'; }
+    else if (st?.futura) { bg = '#DBEAFE'; color = '#1D4ED8'; }
     else if (evento?.tipo === 'recesso') { bg = '#E5E7EB'; color = '#4B5563'; titulo = `Recesso — ${evento.descricao || ''}`; }
     else if (evento?.tipo === 'feriado_municipal' || evento?.tipo === 'feriado_estadual') { bg = '#FEE2E2'; color = '#DC2626'; titulo = `Feriado — ${evento.descricao || ''}`; }
     let outline = '';
     if (marcado) outline = 'outline:2px solid var(--purple);outline-offset:-1px;';
     else if (selecionado) outline = 'box-shadow:0 0 0 2px var(--purple);font-weight:800;';
-    html += `<span class="cal-aulas-dia" aria-pressed="${selecionado}" onclick="calAulasClicarDia('${iso}')" title="${escHtmlAttr(titulo)}" style="cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;font-size:11px;font-weight:600;padding:5px 0;border-radius:50%;background:${bg};color:${color};${outline}">${dia}</span>`;
+    html += `<span class="cal-aulas-dia" aria-pressed="${selecionado}" onclick="calAulasClicarDia('${iso}')" title="${escHtmlAttr(titulo)}" style="cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;width:100%;max-width:54px;justify-self:center;font-size:15px;font-weight:600;border-radius:50%;background:${bg};color:${color};${outline}">${dia}</span>`;
   }
 
   grid.innerHTML = html;
+}
+
+// ── Contexto de filtros do calendário ────────────────────────────────────────
+// Com filtro ativo: dias fora do trimestre ou sem aula que passe nos filtros
+// ficam em branco, e meses sem nenhum dia visível não aparecem na navegação.
+// Com o painel "Nova aula / Editar aula" aberto, nenhum filtro se aplica
+// (é preciso poder marcar qualquer data).
+function _calAulasPainelAberto() {
+  return document.getElementById('painel-nova-aula-cal')?.style.display === 'flex';
+}
+
+function _calAulasYM(ano, mes) {
+  return `${ano}-${String(mes + 1).padStart(2, '0')}`;
+}
+
+function _calAulasContexto() {
+  const painel = _calAulasPainelAberto();
+  const tri = painel || !aulasTriFiltro || aulasTriFiltro === 'todos' ? 0 : parseInt(aulasTriFiltro);
+  const filtraAulas = !painel && ((aulasTipoFiltro && aulasTipoFiltro !== 'todos') || !!aulasDiscFiltro || aulasDiaSemFiltro !== null);
+  const ctx = { restrito: tri > 0 || filtraAulas, faixa: null, porData: {}, meses: null };
+
+  if (tri > 0) {
+    const div = (_divisoesCache || []).find(d => d.ordem === tri);
+    ctx.faixa = div
+      ? { ini: dataAulaOnly(div.dataIni), fim: dataAulaOnly(div.dataFim) }
+      : { ini: '9999-12-31', fim: '0000-01-01' }; // trimestre sem datas cadastradas: nada aparece
+  }
+
+  // Status por data considerando só as aulas que passam nos filtros
+  (aulasTurma || []).forEach(a => {
+    const iso = dataAulaOnly(a.data);
+    if (!iso) return;
+    if (!painel && !_aulaPassaFiltros(a)) return;
+    const st = _statusEfetivoAula(a);
+    const k = st === 'lecionada' || st === 'futura' ? st : 'pendente';
+    (ctx.porData[iso] = ctx.porData[iso] || { lecionada: false, pendente: false, futura: false })[k] = true;
+  });
+
+  ctx.diaVisivel = iso => {
+    if (!ctx.restrito) return true;
+    if (ctx.faixa && (iso < ctx.faixa.ini || iso > ctx.faixa.fim)) return false;
+    if (filtraAulas) return !!ctx.porData[iso];
+    return true;
+  };
+
+  if (filtraAulas) {
+    ctx.meses = [...new Set(Object.keys(ctx.porData).map(iso => iso.slice(0, 7)))].sort();
+  } else if (ctx.faixa) {
+    const meses = [];
+    if (ctx.faixa.ini <= ctx.faixa.fim) {
+      let y = parseInt(ctx.faixa.ini.slice(0, 4)), m = parseInt(ctx.faixa.ini.slice(5, 7)) - 1;
+      const yf = parseInt(ctx.faixa.fim.slice(0, 4)), mf = parseInt(ctx.faixa.fim.slice(5, 7)) - 1;
+      while (y < yf || (y === yf && m <= mf)) {
+        meses.push(_calAulasYM(y, m));
+        m++; if (m > 11) { m = 0; y++; }
+      }
+    }
+    ctx.meses = meses;
+  }
+  return ctx;
+}
+
+// Se o mês exibido não tem dias visíveis, vai para o mais próximo que tem
+function _calAulasAjustarMes(ctx) {
+  if (!ctx.meses || !ctx.meses.length) return;
+  const atual = _calAulasYM(_calAulasRef.getFullYear(), _calAulasRef.getMonth());
+  if (ctx.meses.includes(atual)) return;
+  const idx = k => parseInt(k.slice(0, 4)) * 12 + parseInt(k.slice(5, 7)) - 1;
+  const alvo = idx(atual);
+  let melhor = ctx.meses[0];
+  ctx.meses.forEach(k => {
+    const d = Math.abs(idx(k) - alvo), db = Math.abs(idx(melhor) - alvo);
+    if (d < db || (d === db && idx(k) > idx(melhor))) melhor = k;
+  });
+  _calAulasRef = new Date(parseInt(melhor.slice(0, 4)), parseInt(melhor.slice(5, 7)) - 1, 1);
+}
+
+// Chamada por todos os filtros (tipo, trimestre, disciplina, dia da semana)
+function _calAulasAplicarFiltro() {
+  const ctx = _calAulasContexto();
+  if (ctx.restrito) {
+    _calAulasDatasSel = _calAulasDatasSel.filter(ctx.diaVisivel);
+    if (!_calAulasDatasSel.includes(_calAulasDiaSel)) {
+      _calAulasDiaSel = _calAulasDatasSel[_calAulasDatasSel.length - 1] || null;
+    }
+  }
+  _calAulasAjustarMes(ctx);
+  renderListaAulas();
 }
 
 function escHtmlAttr(s) {
@@ -2184,7 +2272,18 @@ function escHtmlAttr(s) {
 }
 
 function calAulasMudarMes(delta) {
-  _calAulasRef = new Date(_calAulasRef.getFullYear(), _calAulasRef.getMonth() + delta, 1);
+  const ctx = _calAulasContexto();
+  if (ctx.meses) {
+    // Com filtro: pula direto para o mês anterior/seguinte que tem dias visíveis
+    const atual = _calAulasYM(_calAulasRef.getFullYear(), _calAulasRef.getMonth());
+    const alvo = delta > 0
+      ? ctx.meses.find(k => k > atual)
+      : [...ctx.meses].reverse().find(k => k < atual);
+    if (!alvo) return;
+    _calAulasRef = new Date(parseInt(alvo.slice(0, 4)), parseInt(alvo.slice(5, 7)) - 1, 1);
+  } else {
+    _calAulasRef = new Date(_calAulasRef.getFullYear(), _calAulasRef.getMonth() + delta, 1);
+  }
   renderCalendarioAulas();
 }
 
@@ -2192,6 +2291,13 @@ function calAulasMudarMes(delta) {
 // adiciona à seleção (ou remove, se já estava selecionada). Sem limite de datas.
 function calAulasClicarDia(iso) {
   const painelAberto = document.getElementById('painel-nova-aula-cal')?.style.display === 'flex';
+  if (painelAberto && _nacEditandoId) {
+    // Editando: a aula tem uma única data; clicar em outro dia muda a data
+    _calAulasDatasNovaAula = [iso];
+    renderCalendarioAulas();
+    _renderChipsNovaAulaCal();
+    return;
+  }
   if (painelAberto) {
     const idx = _calAulasDatasNovaAula.indexOf(iso);
     if (idx === -1) _calAulasDatasNovaAula.push(iso);
@@ -2594,7 +2700,28 @@ function _nacLimparSeletoresIndividual() {
   _nacIndBncc = {};
 }
 
+let _nacEditandoId = null;            // aula em edição no painel (null = criando)
+let _nacEditandoTemColunaPlano = false;
+
+// Volta o painel ao modo "Nova aula" (e limpa o que veio de uma edição)
+function _nacSairModoEdicao() {
+  const estavaEditando = _nacEditandoId !== null;
+  _nacEditandoId = null;
+  _nacEditandoTemColunaPlano = false;
+  const set = (id, fn) => { const el = document.getElementById(id); if (el) fn(el); };
+  set('painel-nova-aula-titulo', el => el.textContent = 'Nova aula');
+  set('painel-nova-aula-modos', el => el.style.display = 'flex');
+  set('nac-campo-disciplina', el => el.style.display = 'none');
+  set('btn-salvar-nova-aula-cal', el => el.textContent = 'Criar aula');
+  if (estavaEditando) {
+    set('nac-tema', el => el.value = '');
+    set('nac-conteudo', el => el.value = '');
+    set('nac-disciplina', el => el.value = '');
+  }
+}
+
 function abrirPainelNovaAulaCal() {
+  _nacSairModoEdicao();
   if (_calAulasCliqueTimer) { clearTimeout(_calAulasCliqueTimer); _calAulasCliqueTimer = null; _calAulasCliqueIso = null; }
   _calAulasDatasNovaAula = [..._calAulasDatasSel].sort();
   _calAulasModo = 'mesmo';
@@ -2651,6 +2778,7 @@ async function _nacPlanoIndividualAlterado(card, sel) {
 }
 
 function fecharPainelNovaAulaCal() {
+  _nacSairModoEdicao();
   document.getElementById('painel-nova-aula-cal').style.display = 'none';
   document.getElementById('cal-aulas-busca-wrap').style.display = 'block';
   document.getElementById('cal-aulas-dia-header').style.display = 'flex';
@@ -2658,15 +2786,118 @@ function fecharPainelNovaAulaCal() {
   _calAulasDatasNovaAula = [];
   if (_nacMesmoBncc) _nacMesmoBncc.limpar();
   _nacLimparSeletoresIndividual();
+  _calAulasAjustarMes(_calAulasContexto()); // filtros voltam a valer ao fechar o painel
   renderCalendarioAulas();
   _renderPainelAulasCal();
+}
+
+// Editar aula: usa o mesmo painel de "Nova aula", já preenchido com a aula
+async function abrirPainelEditarAulaCal(aula) {
+  if (!aula) return;
+  abrirPainelNovaAulaCal(); // abre e zera o painel
+  const iso = dataAulaOnly(aula.data);
+  _nacEditandoId = aula.id;
+  _nacEditandoTemColunaPlano = Object.prototype.hasOwnProperty.call(aula, 'plano_doc_id');
+  _calAulasDatasNovaAula = iso ? [iso] : [];
+  if (iso) _calAulasRef = new Date(parseInt(iso.slice(0, 4)), parseInt(iso.slice(5, 7)) - 1, 1);
+
+  document.getElementById('painel-nova-aula-titulo').textContent = 'Editar aula';
+  document.getElementById('painel-nova-aula-modos').style.display = 'none';
+  document.getElementById('btn-salvar-nova-aula-cal').textContent = 'Salvar alterações';
+  setModoNovaAulaCal('mesmo');
+
+  document.getElementById('nac-tema').value = aula.nome || '';
+  document.getElementById('nac-conteudo').value = aula.descricao || '';
+  PlanoVinculoAula.preencherSelect(document.getElementById('nac-plano'), aula.plano_doc_id ?? '', true);
+
+  const campoDisc = document.getElementById('nac-campo-disciplina');
+  const selDisc = document.getElementById('nac-disciplina');
+  if (campoDisc && selDisc && isFundamentalI()) {
+    campoDisc.style.display = 'block';
+    selDisc.innerHTML = '<option value="">Selecione a disciplina...</option>' +
+      (_disciplinasAulasFundI || []).map(d => `<option value="${d}"${aula.disciplina === d ? ' selected' : ''}>${d}</option>`).join('');
+  }
+
+  renderCalendarioAulas();
+  _renderChipsNovaAulaCal();
+  document.getElementById('painel-nova-aula-cal')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+  // Habilidades BNCC já vinculadas à aula
+  try {
+    const rows = await api(`aula_habilidades?aula_id=eq.${aula.id}&select=habilidade_id,habilidades_planejamento(id,codigo,descricao)`) || [];
+    const hs = rows.map(r => r.habilidades_planejamento).filter(Boolean)
+      .map(h => ({ id: h.id, codigo: h.codigo, descricao: h.descricao }));
+    if (_nacEditandoId === aula.id && _nacMesmoBncc) _nacMesmoBncc.setSelecionadas(hs);
+  } catch (e) {
+    console.error('[AULAS] Erro ao carregar habilidades da aula:', e);
+  }
+}
+window.abrirPainelEditarAulaCal = abrirPainelEditarAulaCal;
+
+async function salvarEdicaoAulaCal() {
+  const alertEl = document.getElementById('painel-nova-aula-alert');
+  alertEl.style.display = 'none';
+  const id = _nacEditandoId;
+  const iso = _calAulasDatasNovaAula[0];
+  const tema = document.getElementById('nac-tema').value.trim();
+  const descricao = document.getElementById('nac-conteudo').value.trim();
+  if (!iso) { alertEl.textContent = 'Marque a data da aula no calendário.'; alertEl.style.display = 'block'; return; }
+  if (!tema) { alertEl.textContent = 'Informe o tema da aula.'; alertEl.style.display = 'block'; return; }
+
+  const btn = document.getElementById('btn-salvar-nova-aula-cal');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  try {
+    const tri = detectarTrimestreAtual().tri;
+    if (await verificarBloqueio(tri)) return;
+
+    const profData = JSON.parse(sessionStorage.getItem('prof_data') || '{}');
+    const body = {
+      data: iso,
+      nome: tema,
+      descricao,
+      status: calcularStatusAuto(iso, id),
+      turma_id: turmaAtiva.id,
+      turma_disciplina_id: turmaDisciplinaAtiva?.id || null,
+      professor_id: profData.id,
+    };
+    if (isFundamentalI()) {
+      const disc = document.getElementById('nac-disciplina')?.value || null;
+      if (disc) body.disciplina = disc;
+    }
+    const planoSel = document.getElementById('nac-plano')?.value || '';
+    if (planoSel) body.plano_doc_id = planoSel;
+    else if (_nacEditandoTemColunaPlano) body.plano_doc_id = null;
+
+    const atualizadas = await api(`aulas?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+    if (!atualizadas?.length) throw new Error('A aula não foi encontrada ou você não tem permissão para alterá-la.');
+    const idx = aulasTurma.findIndex(a => String(a.id) === String(id));
+    if (idx !== -1) aulasTurma[idx] = { ...aulasTurma[idx], ...body };
+
+    await _salvarVinculosHabilidadesAula(id, _nacMesmoBncc ? _nacMesmoBncc.getSelecionadas() : []);
+    await _carregarHabilidadesTextoPorAula();
+    cacheSalvar(turmaAtiva.id, 'aulas', aulasTurma);
+
+    _calAulasDatasSel = [iso];
+    _calAulasDiaSel = iso;
+    fecharPainelNovaAulaCal();
+    renderListaAulas();
+    atualizarContadorAulas();
+    if (typeof mostrarToast === 'function') mostrarToast('Aula salva com sucesso!');
+  } catch (e) {
+    alertEl.textContent = `Erro ao salvar: ${PlanoVinculoAula.mensagemErro(e)}`;
+    alertEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = _nacEditandoId ? 'Salvar alterações' : 'Criar aula';
+  }
 }
 
 function _renderChipsNovaAulaCal() {
   const wrap = document.getElementById('painel-nova-aula-chips');
   if (!wrap) return;
   if (!_calAulasDatasNovaAula.length) {
-    wrap.innerHTML = `<span style="font-size:11px;color:var(--text-muted);">Clique nos dias do calendário para marcar as datas.</span>`;
+    wrap.innerHTML = `<span style="font-size:11px;color:var(--text-muted);">${_nacEditandoId ? 'Clique em um dia do calendário para definir a data.' : 'Clique nos dias do calendário para marcar as datas.'}</span>`;
     return;
   }
   wrap.innerHTML = _calAulasDatasNovaAula.map(iso => {
@@ -2760,6 +2991,7 @@ function _renderFormNovaAulaCal() {
 }
 
 async function salvarNovaAulaCal() {
+  if (_nacEditandoId) return salvarEdicaoAulaCal();
   const alertEl = document.getElementById('painel-nova-aula-alert');
   alertEl.style.display = 'none';
   if (!_calAulasDatasNovaAula.length) {
