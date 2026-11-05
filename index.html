@@ -3,1843 +3,666 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="theme-color" content="#0A0F1E"/>
+  <meta name="theme-color" content="#0B1B4D"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-title" content="SIDED+"/>
-  <meta name="description" content="SIDED+ — Diário Escolar Digital para professores. Gerencie chamadas, notas e planejamentos de forma simples e eficiente. Grátis para começar."/>
-  <meta name="keywords" content="diário escolar digital, app professor, controle de notas, chamada online, gestão escolar, planejamento professor"/>
-  <meta property="og:title" content="SIDED+ — Diário Escolar Digital"/>
-  <meta property="og:description" content="Chamadas, notas e planejamentos em um só lugar. Para professores que querem mais tempo para ensinar."/>
-  <meta property="og:type" content="website"/>
+  <meta name="description" content="SIDED+ — Diário Escolar Digital. Acesse com seu e-mail, login ou CPF."/>
   <link rel="icon" type="image/png" href="sided_logo.png"/>
   <link rel="apple-touch-icon" href="sided_logo.png"/>
   <link rel="manifest" href="manifest.json"/>
-  <title>SIDED+ — Diário Escolar Digital para Professores</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <title>SIDED+ — Acesso</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/vconsole@3.15.1/dist/vconsole.min.js"></script>
-  <script>
-    window.addEventListener('load', function() {
-      new VConsole();
-      if (window.supabase) {
-        console.log('Supabase SDK carregado OK');
-      } else {
-        console.error('Supabase SDK NAO carregou!');
-      }
-    });
-  </script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --ink: #FFFFFF;
-      --ink2: #F0F6FF;
-      --paper: #1E293B;
-      --cream: #DBEAFE;
-      --gold: #2563EB;
-      --gold-light: #3B82F6;
-      --violet: #2563EB;
-      --violet-dark: #1E40AF;
-      --text: #1E293B;
-      --muted: #64748B;
-      --border: rgba(37,99,235,0.25);
-      --card: #FFFFFF;
-      --success: #22C55E;
-      --error: #EF4444;
+      --navy: #0B1B4D;
       --primary: #2563EB;
       --primary-dark: #1E40AF;
       --primary-light: #60A5FA;
-      --bg: #EEF4FF;
+      --sky: #DBEAFE;
+      --text: #0F172A;
+      --muted: #64748B;
+      --line: #E2E8F0;
+      --soft: #F5F8FF;
+      --success: #22C55E;
     }
 
-    html { scroll-behavior: smooth; }
+    html, body { min-height: 100%; }
 
     body {
       font-family: 'DM Sans', sans-serif;
-      background: var(--ink);
       color: var(--text);
+      background: #fff;
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
       min-height: 100vh;
       overflow-x: hidden;
     }
 
-    /* ── NOISE TEXTURE ── */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 1000;
-      opacity: 0.4;
-    }
-
-    /* ══ NAV ══ */
-    nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 100;
+    /* ═════════ PAINEL ESQUERDO ═════════ */
+    .brand {
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      background: linear-gradient(150deg, #081338 0%, #1E3A8A 45%, #2563EB 100%);
       display: flex;
-      align-items: center;
+      flex-direction: column;
       justify-content: space-between;
-      padding: 0 48px;
-      height: 72px;
-      background: rgba(255,255,255,0.92);
-      backdrop-filter: blur(24px);
-      border-bottom: 1px solid var(--border);
+      padding: 48px 64px;
+      isolation: isolate;
     }
 
-    .nav-brand {
+    .brand::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.18) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: radial-gradient(ellipse 80% 70% at 30% 40%, #000 20%, transparent 80%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 70% at 30% 40%, #000 20%, transparent 80%);
+      z-index: -1;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(70px);
+      z-index: -1;
+      animation: drift 14s ease-in-out infinite alternate;
+    }
+    .orb.o1 { width: 420px; height: 420px; background: rgba(96,165,250,0.55); top: -120px; right: -120px; }
+    .orb.o2 { width: 360px; height: 360px; background: rgba(37,99,235,0.7); bottom: -140px; left: -100px; animation-delay: -6s; }
+
+    .ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.12);
+      z-index: -1;
+    }
+    .ring.r1 { width: 640px; height: 640px; right: -240px; top: 18%; }
+    .ring.r2 { width: 420px; height: 420px; right: -120px; top: 28%; }
+
+    @keyframes drift {
+      from { transform: translate(0,0) scale(1); }
+      to { transform: translate(40px,-30px) scale(1.12); }
+    }
+
+    .brand-top {
       display: flex;
       align-items: center;
       gap: 14px;
-      text-decoration: none;
+      animation: fadeUp 0.7s ease both;
     }
 
-    .nav-brand img {
-      width: 36px; height: 36px;
-      border-radius: 10px;
+    .brand-top img {
+      width: 46px; height: 46px;
+      border-radius: 13px;
       object-fit: cover;
-      border: 1px solid var(--border);
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.1);
     }
 
-    .nav-brand-name {
+    .brand-name {
       font-family: 'Space Mono', monospace;
       font-weight: 700;
-      font-size: 17px;
-      color: var(--text);
+      font-size: 20px;
       letter-spacing: 1px;
     }
+    .brand-name span { color: var(--primary-light); }
 
-    .nav-brand-name span {
-      color: var(--gold);
+    .brand-tag {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+      margin-top: 2px;
     }
 
-    .nav-buttons { display: flex; gap: 12px; }
+    .brand-mid { max-width: 560px; }
 
-    .nav-btn {
-      padding: 9px 22px;
-      border-radius: 8px;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      border: none;
-    }
-
-    .nav-btn-ghost {
-      background: transparent;
-      border: 1px solid rgba(37,99,235,0.4);
-      color: var(--gold);
-    }
-
-    .nav-btn-ghost:hover {
-      background: rgba(37,99,235,0.1);
-      border-color: var(--gold);
-    }
-
-    .nav-btn-solid {
-      background: var(--gold);
-      color: #FFFFFF;
-      font-weight: 700;
-    }
-
-    .nav-btn-solid:hover {
-      background: var(--gold-light);
-      transform: translateY(-1px);
-    }
-
-    /* ══ HERO ══ */
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      text-align: center;
-      padding: 140px 24px 100px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    /* Decorative lines */
-    .hero-lines {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      overflow: hidden;
-    }
-
-    .hero-lines::before {
-      content: '';
-      position: absolute;
-      top: 50%; left: 50%;
-      width: 900px; height: 900px;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
-      border: 1px solid rgba(37,99,235,0.15);
-      animation: expandRing 4s ease-out forwards;
-    }
-
-    .hero-lines::after {
-      content: '';
-      position: absolute;
-      top: 50%; left: 50%;
-      width: 600px; height: 600px;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
-      border: 1px solid rgba(37,99,235,0.15);
-      animation: expandRing 4s 0.3s ease-out forwards;
-    }
-
-    @keyframes expandRing {
-      from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
-      to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    }
-
-    /* Glow blob */
-    .hero-glow {
-      position: absolute;
-      top: 30%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 700px; height: 500px;
-      background: radial-gradient(ellipse, rgba(37,99,235,0.12) 0%, transparent 70%);
-      pointer-events: none;
-    }
-
-    .hero-glow2 {
-      position: absolute;
-      top: 60%; left: 70%;
-      width: 400px; height: 400px;
-      background: radial-gradient(ellipse, rgba(96,165,250,0.1) 0%, transparent 70%);
-      pointer-events: none;
-    }
-
-    /* Floating dots grid */
-    .hero-dots {
-      position: absolute;
-      inset: 0;
-      background-image: radial-gradient(circle, rgba(37,99,235,0.18) 1px, transparent 1px);
-      background-size: 40px 40px;
-      pointer-events: none;
-      mask-image: radial-gradient(ellipse 70% 70% at center, black 30%, transparent 100%);
-    }
-
-    .hero-eyebrow {
+    .eyebrow {
       display: inline-flex;
       align-items: center;
       gap: 10px;
       font-family: 'Space Mono', monospace;
       font-size: 11px;
-      font-weight: 400;
       letter-spacing: 3px;
       text-transform: uppercase;
-      color: var(--gold);
-      margin-bottom: 36px;
-      position: relative;
-      z-index: 2;
-      animation: fadeUp 0.8s ease both;
+      color: var(--primary-light);
+      margin-bottom: 22px;
+      animation: fadeUp 0.7s 0.1s ease both;
     }
 
-    .eyebrow-line {
-      width: 40px; height: 1px;
-      background: var(--gold);
-      opacity: 0.6;
-    }
-
-    .live-dot {
+    .eyebrow i {
       width: 7px; height: 7px;
       border-radius: 50%;
       background: var(--success);
-      animation: pulse 1.5s infinite;
+      box-shadow: 0 0 0 0 rgba(34,197,94,0.6);
+      animation: pulse 1.8s infinite;
     }
 
     @keyframes pulse {
-      0%,100% { opacity:1; transform:scale(1); }
-      50% { opacity:0.5; transform:scale(1.3); }
+      0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.55); }
+      70% { box-shadow: 0 0 0 10px rgba(34,197,94,0); }
+      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
     }
 
-    .hero-title {
+    .headline {
       font-family: 'Playfair Display', serif;
-      font-size: clamp(52px, 10vw, 108px);
       font-weight: 900;
-      line-height: 1.0;
-      color: var(--text);
-      position: relative;
-      z-index: 2;
-      margin-bottom: 12px;
-      animation: fadeUp 0.8s 0.1s ease both;
+      font-size: clamp(40px, 4.6vw, 68px);
+      line-height: 1.04;
+      margin-bottom: 18px;
+      animation: fadeUp 0.7s 0.2s ease both;
     }
-
-    .hero-title em {
-      font-style: italic;
-      color: var(--gold);
-    }
-
-    .hero-title-sub {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(32px, 6vw, 68px);
+    .headline em { font-style: italic; color: var(--primary-light); }
+    .headline small {
+      display: block;
       font-weight: 400;
       font-style: italic;
-      color: rgba(30,41,59,0.45);
-      display: block;
-      animation: fadeUp 0.8s 0.2s ease both;
-      margin-bottom: 40px;
+      font-size: 0.62em;
+      color: rgba(255,255,255,0.55);
+      margin-top: 6px;
     }
 
-    .hero-desc {
-      font-size: clamp(14px, 2vw, 17px);
-      color: rgba(30,41,59,0.65);
-      max-width: 520px;
-      line-height: 1.8;
+    .lead {
+      font-size: 16px;
+      line-height: 1.75;
+      color: rgba(255,255,255,0.72);
+      max-width: 440px;
+      animation: fadeUp 0.7s 0.3s ease both;
+    }
+
+    /* Cards flutuantes de ilustração */
+    .mock {
       position: relative;
-      z-index: 2;
-      margin-bottom: 52px;
-      animation: fadeUp 0.8s 0.3s ease both;
+      height: 250px;
+      margin-top: 44px;
+      animation: fadeUp 0.9s 0.45s ease both;
     }
 
-    .hero-actions {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-      justify-content: center;
-      position: relative;
-      z-index: 2;
-      animation: fadeUp 0.8s 0.4s ease both;
-    }
-
-    .btn-primary {
-      padding: 16px 44px;
-      background: var(--gold);
-      border: none;
-      border-radius: 10px;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      color: #FFFFFF;
-      cursor: pointer;
-      transition: all 0.25s ease;
-      letter-spacing: 0.3px;
-    }
-
-    .btn-primary:hover {
-      background: var(--gold-light);
-      transform: translateY(-3px);
-      box-shadow: 0 12px 40px rgba(37,99,235,0.35);
-    }
-
-    .btn-outline {
-      padding: 16px 44px;
-      background: transparent;
-      border: 1px solid rgba(30,41,59,0.2);
-      border-radius: 10px;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 15px;
-      font-weight: 500;
-      color: rgba(30,41,59,0.8);
-      cursor: pointer;
-      transition: all 0.25s ease;
-    }
-
-    .btn-outline:hover {
-      border-color: rgba(30,41,59,0.5);
-      color: var(--text);
-      transform: translateY(-3px);
-    }
-
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(24px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ── Hero scroll indicator ── */
-    .scroll-hint {
+    .glass {
       position: absolute;
-      bottom: 40px; left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.22);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(2,8,40,0.35);
+      animation: float 7s ease-in-out infinite;
+    }
+
+    .glass.g1 { left: 0; top: 0; width: 290px; padding: 18px 20px; }
+    .glass.g2 { left: 250px; top: 62px; width: 210px; padding: 16px 18px; animation-delay: -2.5s; }
+    .glass.g3 { left: 70px; top: 176px; padding: 12px 18px; display: flex; align-items: center; gap: 12px; animation-delay: -4.5s; border-radius: 100px; }
+
+    @keyframes float {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+
+    .g-title {
       font-size: 11px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: rgba(30,41,59,0.3);
-      z-index: 2;
-      animation: fadeUp 1s 0.8s ease both;
-    }
-
-    .scroll-arrow {
-      width: 1px; height: 40px;
-      background: linear-gradient(to bottom, rgba(30,41,59,0.3), transparent);
-      animation: scrollBob 2s infinite;
-    }
-
-    @keyframes scrollBob {
-      0%,100% { transform: scaleY(1); opacity: 0.5; }
-      50% { transform: scaleY(1.3); opacity: 1; }
-    }
-
-    /* ══ STATS BAR ══ */
-    .stats-bar {
-      background: #FFFFFF;
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      padding: 40px 48px;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 32px;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    .stat-item {
-      text-align: center;
-      padding: 0 24px;
-      border-right: 1px solid var(--border);
-    }
-
-    .stat-item:last-child { border-right: none; }
-
-    .stat-number {
-      font-family: 'Playfair Display', serif;
-      font-size: 42px;
-      font-weight: 700;
-      color: var(--gold);
-      line-height: 1;
-      margin-bottom: 6px;
-    }
-
-    .stat-label {
-      font-size: 12px;
       letter-spacing: 1.5px;
       text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    /* ══ FEATURES SECTION ══ */
-    .section {
-      padding: 120px 48px;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .section-label {
+      color: rgba(255,255,255,0.6);
       font-family: 'Space Mono', monospace;
-      font-size: 11px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--gold);
-      margin-bottom: 24px;
+      margin-bottom: 14px;
+    }
+
+    .row {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 0;
     }
 
-    .section-label::before {
-      content: '';
-      width: 32px; height: 1px;
-      background: var(--gold);
-      opacity: 0.6;
-    }
-
-    .section-title {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(36px, 5vw, 60px);
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1.15;
-      margin-bottom: 20px;
-    }
-
-    .section-title em {
-      font-style: italic;
-      color: var(--gold);
-    }
-
-    .section-desc {
-      font-size: 17px;
-      color: rgba(30,41,59,0.55);
-      max-width: 500px;
-      line-height: 1.8;
-      margin-bottom: 72px;
-    }
-
-    /* Features Grid */
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 2px;
-      background: var(--border);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      overflow: hidden;
-    }
-
-    .feat-card {
-      background: #FFFFFF;
-      padding: 48px 44px;
-      transition: background 0.3s ease;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .feat-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--gold), transparent);
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-
-    .feat-card:hover { background: #E8F0FE; }
-    .feat-card:hover::before { opacity: 1; }
-
-    .feat-number {
-      font-family: 'Space Mono', monospace;
+    .avatar {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #93C5FD, #3B82F6);
+      display: grid; place-items: center;
       font-size: 11px;
-      color: var(--gold);
-      opacity: 0.6;
-      letter-spacing: 2px;
-      margin-bottom: 24px;
-    }
-
-    .feat-icon-wrap {
-      width: 56px; height: 56px;
-      border-radius: 16px;
-      background: rgba(37,99,235,0.1);
-      border: 1px solid rgba(37,99,235,0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 26px;
-      margin-bottom: 24px;
-      transition: all 0.3s ease;
-    }
-
-    .feat-card:hover .feat-icon-wrap {
-      background: rgba(37,99,235,0.15);
-      transform: scale(1.08);
-    }
-
-    .feat-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 24px;
       font-weight: 700;
-      color: var(--text);
-      margin-bottom: 12px;
+      color: #0B1B4D;
+      flex-shrink: 0;
     }
 
-    .feat-desc {
-      font-size: 15px;
-      color: rgba(30,41,59,0.45);
-      line-height: 1.7;
+    .chk {
+      margin-left: auto;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: rgba(34,197,94,0.95);
+      display: grid; place-items: center;
+      font-size: 11px;
+      font-weight: 700;
     }
+    .chk.off { background: rgba(255,255,255,0.18); color: transparent; }
 
-    /* ══ HOW IT WORKS ══ */
-    .how-section {
-      padding: 120px 48px;
-      background: linear-gradient(180deg, #FFFFFF 0%, #F0F6FF 50%, #FFFFFF 100%);
-    }
-
-    .how-inner {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .steps-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 48px;
-      margin-top: 72px;
-    }
-
-    .step-item {
-      position: relative;
-    }
-
-    .step-item:not(:last-child)::after {
-      content: '→';
-      position: absolute;
-      right: -24px;
-      top: 28px;
-      font-size: 24px;
-      color: rgba(37,99,235,0.3);
-    }
-
-    .step-num {
+    .big-num {
       font-family: 'Playfair Display', serif;
-      font-size: 80px;
-      font-weight: 900;
-      color: rgba(37,99,235,0.12);
+      font-size: 40px;
+      font-weight: 700;
       line-height: 1;
-      margin-bottom: -12px;
     }
 
-    .step-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 12px;
-    }
-
-    .step-desc {
-      font-size: 15px;
-      color: rgba(30,41,59,0.45);
-      line-height: 1.7;
-    }
-
-    .step-badge {
-      display: inline-block;
-      padding: 4px 12px;
-      background: rgba(37,99,235,0.12);
-      border: 1px solid rgba(37,99,235,0.25);
-      border-radius: 100px;
-      font-size: 11px;
-      color: var(--gold);
-      letter-spacing: 1px;
-      font-family: 'Space Mono', monospace;
-      margin-bottom: 16px;
-    }
-
-    /* ══ TESTIMONIAL / QUOTE ══ */
-    .quote-section {
-      padding: 100px 48px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .quote-glow {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 600px; height: 400px;
-      background: radial-gradient(ellipse, rgba(37,99,235,0.06) 0%, transparent 70%);
-      pointer-events: none;
-    }
-
-    .quote-mark {
-      font-family: 'Playfair Display', serif;
-      font-size: 140px;
-      line-height: 0.8;
-      color: rgba(37,99,235,0.12);
-      position: relative;
-      z-index: 2;
-    }
-
-    .quote-text {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(22px, 4vw, 38px);
-      font-weight: 400;
-      font-style: italic;
-      color: var(--text);
-      max-width: 800px;
-      margin: 0 auto 32px;
-      line-height: 1.5;
-      position: relative;
-      z-index: 2;
-    }
-
-    .quote-text em {
-      color: var(--gold);
-      font-style: normal;
-      font-weight: 700;
-    }
-
-    .quote-author {
-      font-size: 14px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: rgba(30,41,59,0.4);
-      font-family: 'Space Mono', monospace;
-    }
-
-    /* ══ CTA SECTION ══ */
-    .cta-section {
-      padding: 120px 48px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .cta-inner {
-      max-width: 720px;
-      margin: 0 auto;
-      position: relative;
-      z-index: 2;
-    }
-
-    .cta-box {
-      border: 1px solid var(--border);
-      border-radius: 32px;
-      padding: 80px 64px;
-      background: rgba(37,99,235,0.03);
-      backdrop-filter: blur(10px);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .cta-box::before {
-      content: '';
-      position: absolute;
-      top: -1px; left: 20%; right: 20%;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--gold), transparent);
-    }
-
-    .cta-box::after {
-      content: '';
-      position: absolute;
-      bottom: -1px; left: 20%; right: 20%;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--gold), transparent);
-    }
-
-    .cta-title {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(36px, 5vw, 56px);
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1.15;
-      margin-bottom: 20px;
-    }
-
-    .cta-title em {
-      font-style: italic;
-      color: var(--gold);
-    }
-
-    .cta-sub {
-      font-size: 16px;
-      color: rgba(30,41,59,0.55);
-      line-height: 1.7;
-      margin-bottom: 48px;
-    }
-
-    .cta-actions {
+    .bars {
       display: flex;
-      gap: 16px;
-      justify-content: center;
-      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 6px;
+      height: 44px;
+      margin-top: 14px;
     }
+    .bars b {
+      flex: 1;
+      border-radius: 4px 4px 0 0;
+      background: linear-gradient(180deg, #BFDBFE, #3B82F6);
+      transform-origin: bottom;
+      animation: grow 1.2s 0.8s ease both;
+    }
+    @keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 
-    .cta-free-note {
-      margin-top: 24px;
+    .dot-ok {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--success);
+    }
+    .glass.g3 span { font-size: 13px; font-weight: 600; }
+
+    .brand-bottom {
       font-size: 12px;
-      color: rgba(30,41,59,0.3);
-      letter-spacing: 1px;
-      font-family: 'Space Mono', monospace;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.5px;
     }
 
-    /* ══ FOOTER ══ */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 48px;
+    /* ═════════ PAINEL DO FORMULÁRIO ═════════ */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 48px 32px;
+      background:
+        radial-gradient(600px 400px at 100% 0%, rgba(219,234,254,0.7), transparent 70%),
+        #fff;
+    }
+
+    .form-wrap {
+      width: 100%;
+      max-width: 400px;
+      animation: fadeUp 0.7s 0.15s ease both;
+    }
+
+    .mobile-logo { display: none; }
+
+    .welcome {
+      font-family: 'Playfair Display', serif;
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+    .welcome em { font-style: italic; color: var(--primary); }
+
+    .welcome-sub {
+      font-size: 15px;
+      color: var(--muted);
+      margin-bottom: 34px;
+    }
+
+    .error-msg {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #B91C1C;
+      margin-bottom: 18px;
+    }
+    .error-msg.show { display: flex; animation: shake 0.4s ease; }
+    .error-msg svg { flex-shrink: 0; }
+
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%,60% { transform: translateX(-6px); }
+      40%,80% { transform: translateX(6px); }
+    }
+
+    .field { margin-bottom: 20px; }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      color: #334155;
+      margin-bottom: 8px;
+    }
+
+    .control {
+      position: relative;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      max-width: 1200px;
-      margin: 0 auto;
     }
 
-    .footer-brand {
-      font-family: 'Space Mono', monospace;
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--text);
-    }
-
-    .footer-brand span { color: var(--gold); }
-
-    .footer-copy {
-      font-size: 13px;
-      color: rgba(30,41,59,0.3);
-    }
-
-    .footer-links {
+    .control .ico {
+      position: absolute;
+      left: 16px;
+      color: #94A3B8;
       display: flex;
-      gap: 32px;
-    }
-
-    .footer-links a {
-      font-size: 13px;
-      color: rgba(30,41,59,0.4);
-      text-decoration: none;
+      pointer-events: none;
       transition: color 0.2s;
     }
 
-    .footer-links a:hover { color: var(--gold); }
-
-    /* ══ MODAL / OVERLAY ══ */
-    .overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 200;
-      background: rgba(15,23,42,0.85);
-      backdrop-filter: blur(24px);
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-
-    .overlay.active { display: flex; }
-
-    .modal-card {
+    .control input {
       width: 100%;
-      max-width: 440px;
-      background: #FFFFFF;
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 44px 40px;
-      position: relative;
-      animation: popIn 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
-      box-shadow: 0 20px 60px rgba(37,99,235,0.15);
-    }
-
-    .modal-card-wide {
-      max-width: 480px;
-      max-height: 92vh;
-      overflow-y: auto;
-    }
-
-    @keyframes popIn {
-      from { opacity: 0; transform: scale(0.95) translateY(-10px); }
-      to { opacity: 1; transform: scale(1) translateY(0); }
-    }
-
-    .close-btn {
-      position: absolute;
-      top: 18px; right: 18px;
-      background: #F0F6FF;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 18px;
-      cursor: pointer;
-      color: var(--muted);
-      transition: all 0.2s;
-      width: 34px; height: 34px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .close-btn:hover {
-      color: var(--text);
-      background: #EBF2FF;
-    }
-
-    .modal-logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 28px;
-    }
-
-    .modal-logo img {
-      width: 40px; height: 40px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-    }
-
-    .modal-logo-name {
-      font-family: 'Space Mono', monospace;
-      font-weight: 700;
-      font-size: 17px;
-      color: var(--text);
-    }
-
-    .modal-logo-name span { color: var(--gold); }
-
-    .modal-logo-sub {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-
-    .modal-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 26px;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 6px;
-    }
-
-    .modal-sub {
-      font-size: 14px;
-      color: var(--muted);
-      margin-bottom: 28px;
-    }
-
-    /* Form elements */
-    .form-label {
-      display: block;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--gold);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 8px;
-      font-family: 'Space Mono', monospace;
-    }
-
-    .form-input {
-      width: 100%;
-      padding: 12px 14px;
-      background: #F8FAFF;
-      border: 1px solid rgba(30,41,59,0.15);
-      border-radius: 10px;
+      height: 54px;
+      padding: 0 16px 0 48px;
+      background: var(--soft);
+      border: 1.5px solid transparent;
+      border-radius: 14px;
       font-family: 'DM Sans', sans-serif;
-      font-size: 14px;
+      font-size: 15px;
       color: var(--text);
       outline: none;
       transition: all 0.2s;
     }
 
-    .form-input:focus {
-      border-color: var(--gold);
-      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    .control input::placeholder { color: #94A3B8; }
+    .control input:hover { background: #EEF4FF; }
+
+    .control input:focus {
+      background: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(37,99,235,0.14);
     }
-
-    .form-input::placeholder { color: rgba(30,41,59,0.35); }
-
-    .form-group { margin-bottom: 18px; }
-
-    .input-wrap { position: relative; }
+    .control:focus-within .ico { color: var(--primary); }
 
     .eye-btn {
       position: absolute;
-      right: 14px; top: 50%;
-      transform: translateY(-50%);
+      right: 8px;
+      width: 38px; height: 38px;
       background: none;
       border: none;
+      border-radius: 10px;
       cursor: pointer;
-      color: var(--muted);
-      display: flex;
-      align-items: center;
-      padding: 4px;
-      transition: color 0.2s;
+      color: #94A3B8;
+      display: grid; place-items: center;
+      transition: all 0.2s;
     }
-
-    .eye-btn:hover { color: var(--gold); }
+    .eye-btn:hover { color: var(--primary); background: var(--sky); }
 
     .btn-login {
       width: 100%;
-      padding: 14px;
-      margin-top: 8px;
-      background: var(--gold);
+      height: 56px;
+      margin-top: 10px;
+      background: linear-gradient(135deg, #2563EB, #1E40AF);
       border: none;
-      border-radius: 10px;
+      border-radius: 14px;
       font-family: 'DM Sans', sans-serif;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 700;
-      color: #FFFFFF;
+      color: #fff;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
-      transition: all 0.2s;
+      box-shadow: 0 12px 28px rgba(37,99,235,0.35);
+      transition: all 0.25s ease;
     }
-
-    .btn-login:hover {
-      background: var(--gold-light);
-      transform: translateY(-1px);
-    }
-
-    .btn-login:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-    .btn-secondary-action {
-      background: #EBF2FF;
-      color: var(--text);
-    }
-
-    .btn-secondary-action:hover {
-      background: #E0ECFF;
-    }
-
-    .divider {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 20px 0;
-    }
-
-    .divider::before, .divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: #EBF2FF;
-    }
-
-    .divider span { font-size: 12px; color: var(--muted); }
-
-    .btn-google {
-      width: 100%;
-      padding: 12px;
-      background: #F0F6FF;
-      border: 1px solid rgba(30,41,59,0.15);
-      border-radius: 10px;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      transition: all 0.2s;
-    }
-
-    .btn-google:hover {
-      background: #EBF2FF;
-      border-color: rgba(30,41,59,0.2);
-    }
-
-    .btn-google svg { width: 20px; height: 20px; }
-
-    .error-msg {
-      display: none;
-      background: rgba(239,68,68,0.1);
-      border: 1px solid rgba(239,68,68,0.3);
-      border-radius: 8px;
-      padding: 12px 16px;
-      font-size: 13px;
-      color: #FC8181;
-      margin-bottom: 16px;
-      text-align: center;
-    }
+    .btn-login:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(37,99,235,0.45); }
+    .btn-login:active { transform: translateY(0); }
+    .btn-login:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+    .btn-login .arrow { transition: transform 0.25s; }
+    .btn-login:hover .arrow { transform: translateX(4px); }
 
     .spinner {
-      width: 16px; height: 16px;
-      border: 2px solid rgba(10,15,30,0.3);
-      border-top-color: #FFFFFF;
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
       border-radius: 50%;
       animation: spin 0.6s linear infinite;
       display: none;
     }
-
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .signup-link {
-      text-align: center;
-      font-size: 13px;
-      color: var(--muted);
-      margin-top: 20px;
-    }
-
-    .signup-link a {
-      color: var(--gold);
-      font-weight: 600;
-      text-decoration: none;
-    }
-
-    .signup-link a:hover { text-decoration: underline; }
-
-    /* ── Cadastro Steps ── */
-    .cad-progress {
-      height: 3px;
-      background: #EBF2FF;
-      border-radius: 100px;
-      margin-bottom: 20px;
-      overflow: hidden;
-    }
-
-    .cad-prog-bar {
-      height: 100%;
-      background: linear-gradient(90deg, var(--gold), var(--gold-light));
-      border-radius: 100px;
-      transition: width 0.4s ease;
-    }
-
-    .cad-step-label {
-      font-size: 11px;
-      color: var(--muted);
-      font-weight: 700;
-      margin-bottom: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      font-family: 'Space Mono', monospace;
-    }
-
-    .cad-back {
-      text-align: center;
-      font-size: 13px;
-      color: var(--muted);
-      margin-top: 16px;
-      cursor: pointer;
-      transition: color 0.2s;
-    }
-
-    .cad-back:hover { color: var(--gold); }
-
-    .escola-drop {
-      position: relative;
-      z-index: 10;
-      background: #FFFFFF;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      margin-top: 6px;
-      max-height: 160px;
-      overflow-y: auto;
-      display: none;
-    }
-
-    .escola-drop.active { display: block; }
-
-    .escola-drop-item {
-      padding: 12px 14px;
-      font-size: 13px;
-      color: var(--text);
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .escola-drop-item:hover { background: #F0F6FF; }
-
-    .escola-tags {
+    .divider {
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .escola-tag {
-      display: inline-flex;
       align-items: center;
-      gap: 8px;
-      background: rgba(37,99,235,0.12);
-      border: 1px solid rgba(37,99,235,0.25);
-      border-radius: 100px;
-      padding: 5px 12px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--gold);
-    }
-
-    .escola-tag button {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--gold);
-      font-size: 16px;
-      line-height: 1;
-      padding: 0;
-      opacity: 0.6;
-      transition: opacity 0.2s;
-    }
-
-    .escola-tag button:hover { opacity: 1; }
-
-    .resumo-box {
-      background: #F8FAFF;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-
-    .resumo-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 13px;
-    }
-
-    .resumo-label {
-      color: var(--muted);
-      font-family: 'Space Mono', monospace;
-      font-size: 11px;
-      letter-spacing: 1px;
-    }
-
-    .resumo-value { color: var(--text); font-weight: 500; }
-
-    .periodo-cards {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .periodo-card {
-      position: relative;
-    }
-
-    .periodo-card input[type="radio"] {
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .periodo-label {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      padding: 16px 12px;
-      background: #F8FAFF;
-      border: 1px solid rgba(30,41,59,0.12);
-      border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-align: center;
-    }
-
-    .periodo-card input:checked + .periodo-label {
-      background: rgba(37,99,235,0.12);
-      border-color: var(--gold);
-    }
-
-    .periodo-label:hover {
-      border-color: rgba(37,99,235,0.4);
-    }
-
-    .periodo-emoji { font-size: 22px; }
-
-    .periodo-name {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    .periodo-sub {
-      font-size: 11px;
-      color: var(--muted);
-    }
-
-    .role-cards {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .role-card {
-      position: relative;
-    }
-
-    .role-card input[type="radio"] {
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .role-label {
-      display: flex;
-      align-items: flex-start;
       gap: 14px;
-      padding: 16px;
-      background: #F8FAFF;
-      border: 1px solid rgba(30,41,59,0.12);
-      border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
+      margin: 26px 0 22px;
     }
-
-    .role-card input:checked + .role-label {
-      background: rgba(37,99,235,0.1);
-      border-color: var(--gold);
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--line);
     }
-
-    .role-emoji { font-size: 22px; flex-shrink: 0; }
-    .role-name { font-size: 14px; font-weight: 700; color: var(--text); }
-    .role-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
-
-    .datas-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .turma-box {
-      background: rgba(34,197,94,0.08);
-      border: 1px solid rgba(34,197,94,0.2);
-      border-radius: 14px;
-      padding: 24px;
-      margin-top: 20px;
-    }
-
-    .turma-title {
-      font-weight: 700;
-      font-size: 15px;
-      color: var(--text);
-      margin-bottom: 6px;
-    }
-
-    .turma-sub {
-      font-size: 13px;
+    .divider span {
+      font-size: 12px;
       color: var(--muted);
-      margin-bottom: 16px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
     }
 
-    .turma-input-row {
-      display: flex;
-      gap: 8px;
-    }
+    .alt-row { display: flex; gap: 12px; }
 
-    .turma-input-row .form-input { flex: 1; }
-
-    .btn-success {
-      background: #22C55E;
-      color: #fff;
-    }
-
-    .btn-success:hover { background: #16A34A; }
-
-    .success-check {
-      width: 64px; height: 64px;
-      border-radius: 50%;
-      background: rgba(34,197,94,0.15);
-      border: 2px solid rgba(34,197,94,0.4);
+    .alt-btn {
+      flex: 1;
+      height: 52px;
+      background: #fff;
+      border: 1.5px solid var(--line);
+      border-radius: 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 32px;
-      margin: 0 auto 20px;
+      gap: 10px;
+      transition: all 0.2s;
+    }
+    .alt-btn:hover {
+      border-color: var(--primary-light);
+      background: var(--soft);
+      transform: translateY(-1px);
+    }
+    .alt-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .alt-btn svg { width: 20px; height: 20px; }
+
+    #btn-passkey { display: none; }
+
+    .secure {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 28px;
+      font-size: 12px;
+      color: var(--muted);
     }
 
-    /* ══ RESPONSIVE ══ */
-    @media (max-width: 768px) {
-      nav { padding: 0 20px; height: 64px; }
-      .section { padding: 80px 24px; }
-      .how-section { padding: 80px 24px; }
-      .quote-section { padding: 60px 24px; }
-      .cta-section { padding: 80px 24px; }
-      .cta-box { padding: 48px 32px; }
-      footer { flex-direction: column; gap: 24px; text-align: center; }
-      .footer-links { justify-content: center; }
-      .steps-grid { grid-template-columns: 1fr; gap: 40px; }
-      .step-item::after { display: none; }
-      .features-grid { grid-template-columns: 1fr; }
-      .stats-bar { padding: 40px 24px; }
-      .stat-item { border-right: none; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
-      .stat-item:last-child { border-bottom: none; }
-      .datas-grid { grid-template-columns: 1fr; }
-      .modal-card { padding: 36px 28px; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
-    @media (max-width: 480px) {
-      .nav-brand-name { display: none; }
-      .periodo-cards { grid-template-columns: repeat(2, 1fr); }
+    /* ═════════ RESPONSIVO ═════════ */
+    @media (max-width: 1100px) {
+      .brand { padding: 40px 40px; }
+      .mock { transform: scale(0.88); transform-origin: left top; }
     }
 
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #F8FAFF; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(37,99,235,0.3); }
+    @media (max-width: 900px) {
+      body { grid-template-columns: 1fr; }
 
-    /* ── Entrance animations for sections ── */
-    .reveal {
-      opacity: 0;
-      transform: translateY(32px);
-      transition: opacity 0.7s ease, transform 0.7s ease;
+      .brand {
+        padding: 36px 28px 90px;
+        min-height: 0;
+        gap: 24px;
+      }
+      .brand-mid .lead, .mock, .brand-bottom, .ring { display: none; }
+      .headline { font-size: 38px; margin-bottom: 0; }
+      .eyebrow { margin-bottom: 14px; }
+
+      .panel {
+        margin-top: -56px;
+        background: #fff;
+        border-radius: 32px 32px 0 0;
+        padding: 36px 24px 40px;
+        position: relative;
+        justify-content: flex-start;
+        flex: 1;
+      }
+      .welcome { font-size: 30px; }
+      .welcome-sub { margin-bottom: 26px; }
     }
 
-    .reveal.visible {
-      opacity: 1;
-      transform: none;
+    @media (max-width: 380px) {
+      .alt-row { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
     }
   </style>
 </head>
 <body>
 
-<!-- ════ NAV ════ -->
-<nav>
-  <a class="nav-brand" href="#">
+<!-- ═════════ PAINEL DA MARCA ═════════ -->
+<aside class="brand">
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="ring r1"></div>
+  <div class="ring r2"></div>
+
+  <div class="brand-top">
     <img src="sided_logo.png" alt="SIDED+"/>
-    <span class="nav-brand-name">SIDED<span>+</span></span>
-  </a>
-  <div class="nav-buttons">
-    <button class="nav-btn nav-btn-ghost" onclick="abrirCad()">Criar conta</button>
-    <button class="nav-btn nav-btn-solid" onclick="abrirLogin()">Acessar →</button>
-  </div>
-</nav>
-
-<!-- ════ HERO ════ -->
-<section class="hero">
-  <div class="hero-lines"></div>
-  <div class="hero-glow"></div>
-  <div class="hero-glow2"></div>
-  <div class="hero-dots"></div>
-
-  <div class="hero-eyebrow">
-    <span class="eyebrow-line"></span>
-    <span class="live-dot"></span>
-    Diário Escolar Digital
-    <span class="eyebrow-line"></span>
-  </div>
-
-  <h1 class="hero-title">
-    Seu diário,<br/><em>sua turma.</em>
-    <span class="hero-title-sub">Sua liberdade.</span>
-  </h1>
-
-  <p class="hero-desc">
-    Chamadas, notas e planejamentos em um só lugar — rápido, simples e de qualquer dispositivo. Para professores que querem mais tempo para o que importa.
-  </p>
-
-  <div class="hero-actions">
-    <button class="btn-primary" onclick="abrirCad()">Começar gratuitamente →</button>
-    <button class="btn-outline" onclick="abrirLogin()">Já tenho conta</button>
-  </div>
-
-  <div class="scroll-hint">
-    <span>Explorar</span>
-    <div class="scroll-arrow"></div>
-  </div>
-</section>
-
-<!-- ════ STATS ════ -->
-<div style="background: #FFFFFF; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
-  <div class="stats-bar reveal">
-    <div class="stat-item">
-      <div class="stat-number">100%</div>
-      <div class="stat-label">Gratuito para começar</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-number">4</div>
-      <div class="stat-label">Ferramentas integradas</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-number">∞</div>
-      <div class="stat-label">Turmas e alunos</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-number">0</div>
-      <div class="stat-label">Papel necessário</div>
+    <div>
+      <div class="brand-name">SIDED<span>+</span></div>
+      <div class="brand-tag">Diário Escolar Digital</div>
     </div>
   </div>
-</div>
 
-<!-- ════ FEATURES ════ -->
-<div class="section reveal">
-  <div class="section-label">Funcionalidades</div>
-  <h2 class="section-title">Tudo que você precisa,<br/><em>nada que te atrapalha.</em></h2>
-  <p class="section-desc">Desenhado para professores reais, com o que realmente importa no dia a dia da sala de aula.</p>
+  <div class="brand-mid">
+    <div class="eyebrow"><i></i> Sistema online</div>
+    <h1 class="headline">
+      Seu diário,<br/><em>sua turma.</em>
+      <small>Sua liberdade.</small>
+    </h1>
+    <p class="lead">Chamadas, notas e planejamentos em um só lugar — rápido, simples e de qualquer dispositivo.</p>
 
-  <div class="features-grid">
-    <div class="feat-card">
-      <div class="feat-number">01</div>
-      <div class="feat-icon-wrap">📋</div>
-      <div class="feat-title">Chamada Rápida</div>
-      <p class="feat-desc">Registro de frequência em segundos com interface intuitiva. Nunca mais perder tempo com papelada no início da aula.</p>
-    </div>
-    <div class="feat-card">
-      <div class="feat-number">02</div>
-      <div class="feat-icon-wrap">📊</div>
-      <div class="feat-title">Gestão de Notas</div>
-      <p class="feat-desc">Lançamento e cálculo automático de médias. Suporte a bimestre, trimestre, semestre e avaliação anual.</p>
-    </div>
-    <div class="feat-card">
-      <div class="feat-number">03</div>
-      <div class="feat-icon-wrap">📈</div>
-      <div class="feat-title">Relatórios Individuais</div>
-      <p class="feat-desc">Acompanhe o desempenho de cada aluno com relatórios detalhados de frequência e notas por período.</p>
-    </div>
-    <div class="feat-card">
-      <div class="feat-number">04</div>
-      <div class="feat-icon-wrap">🗂️</div>
-      <div class="feat-title">Organização de Aulas</div>
-      <p class="feat-desc">Estruture seu conteúdo por turma e disciplina. Tenha todo o material do ano letivo sempre à mão.</p>
-    </div>
-  </div>
-</div>
-
-<!-- ════ HOW IT WORKS ════ -->
-<div class="how-section">
-  <div class="how-inner reveal">
-    <div class="section-label">Como funciona</div>
-    <h2 class="section-title">Três passos para<br/><em>começar hoje.</em></h2>
-
-    <div class="steps-grid">
-      <div class="step-item">
-        <div class="step-num">01</div>
-        <span class="step-badge">GRÁTIS</span>
-        <div class="step-title">Crie sua conta</div>
-        <p class="step-desc">Cadastro simples com e-mail ou Google. Em menos de 2 minutos você já está dentro do sistema.</p>
+    <div class="mock" aria-hidden="true">
+      <div class="glass g1">
+        <div class="g-title">Chamada · 3º Ano A</div>
+        <div class="row"><div class="avatar">A</div>Ana Beatriz<span class="chk">✓</span></div>
+        <div class="row"><div class="avatar">C</div>Carlos Eduardo<span class="chk">✓</span></div>
+        <div class="row"><div class="avatar">L</div>Letícia Souza<span class="chk off">✓</span></div>
       </div>
-      <div class="step-item">
-        <div class="step-num">02</div>
-        <span class="step-badge">SIMPLES</span>
-        <div class="step-title">Configure sua turma</div>
-        <p class="step-desc">Adicione sua escola, escolha o período letivo e crie suas turmas. O sistema se adapta ao seu jeito de trabalhar.</p>
+
+      <div class="glass g2">
+        <div class="g-title">Média da turma</div>
+        <div class="big-num">8,4</div>
+        <div class="bars">
+          <b style="height:45%"></b><b style="height:62%"></b><b style="height:55%"></b>
+          <b style="height:80%"></b><b style="height:70%"></b><b style="height:95%"></b>
+        </div>
       </div>
-      <div class="step-item">
-        <div class="step-num">03</div>
-        <span class="step-badge">PRONTO</span>
-        <div class="step-title">Comece a usar</div>
-        <p class="step-desc">Faça chamadas, lance notas, planeje suas aulas. Tudo sincronizado, de qualquer dispositivo.</p>
+
+      <div class="glass g3">
+        <span class="dot-ok"></span>
+        <span>Tudo sincronizado</span>
       </div>
     </div>
   </div>
-</div>
 
-<!-- ════ QUOTE ════ -->
-<div class="quote-section reveal">
-  <div class="quote-glow"></div>
-  <div class="quote-mark">"</div>
-  <p class="quote-text">
-    O professor não deveria gastar seu tempo com <em>burocracia</em>. Deveria gastar com o que sabe fazer de melhor: <em>ensinar.</em>
-  </p>
-  <div class="quote-author">— A missão do SIDED+</div>
-</div>
+  <div class="brand-bottom">© 2026 SIDED+ — Diário Escolar Digital</div>
+</aside>
 
-<!-- ════ CTA ════ -->
-<div class="cta-section reveal">
-  <div class="cta-inner">
-    <div class="cta-box">
-      <h2 class="cta-title">Pronto para<br/><em>simplificar</em> sua rotina?</h2>
-      <p class="cta-sub">Junte-se a professores que já usam o SIDED+ para transformar a gestão da sala de aula.</p>
-      <div class="cta-actions">
-        <button class="btn-primary" onclick="abrirCad()">Criar conta grátis →</button>
-        <button class="btn-outline" onclick="abrirLogin()">Já tenho conta</button>
-      </div>
-      <p class="cta-free-note">// GRATUITO · SEM CARTÃO · COMEÇA HOJE</p>
+<!-- ═════════ PAINEL DO LOGIN ═════════ -->
+<main class="panel">
+  <div class="form-wrap">
+
+    <h2 class="welcome">Bem-vindo<br/><em>de volta</em></h2>
+    <p class="welcome-sub">Acesse com seu e-mail, login ou CPF.</p>
+
+    <div id="error-msg" class="error-msg" role="alert">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="error-text"></span>
     </div>
-  </div>
-</div>
 
-<!-- ════ FOOTER ════ -->
-<footer>
-  <div class="footer-brand">SIDED<span>+</span></div>
-  <div class="footer-copy">© 2025 SIDED+ — Diário Escolar Digital</div>
-  <div class="footer-links">
-    <a href="#">Sobre</a>
-    <a href="#">Contato</a>
-    <a href="#">Privacidade</a>
-  </div>
-</footer>
-
-
-<!-- ════════════════ MODAL EMAIL (migração auth) ════════════════ -->
-<div id="overlay-email" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(15,23,42,0.85);backdrop-filter:blur(24px);align-items:center;justify-content:center;padding:20px;">
-  <div class="modal-card" style="max-width:420px;width:100%;">
-    <div class="modal-logo">
-      <img src="sided_logo.png" alt="SIDED+"/>
-      <div>
-        <div class="modal-logo-name">SIDED<span>+</span></div>
-        <div class="modal-logo-sub">Diário Escolar Digital</div>
+    <div class="field">
+      <label for="inp-login">E-mail, login ou CPF</label>
+      <div class="control">
+        <span class="ico">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+        <input id="inp-login" type="text" placeholder="Digite seu acesso" autocomplete="username" autocapitalize="none" oninput="mascaraLoginCpf(this)"/>
       </div>
     </div>
-    <div class="modal-title" style="margin-bottom:6px">Um último passo 🎉</div>
-    <div class="modal-sub" style="margin-bottom:24px">Cadastre seu e-mail para ativar o acesso seguro</div>
-    <div id="error-msg-email" class="error-msg"></div>
-    <div class="form-group">
-      <label class="form-label">Seu e-mail</label>
-      <input class="form-input" id="inp-email-migracao" type="email" placeholder="professor@escola.com.br" autocomplete="email"/>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Confirmar e-mail</label>
-      <input class="form-input" id="inp-email-migracao-confirm" type="email" placeholder="professor@escola.com.br" autocomplete="email"/>
-    </div>
-    <button class="btn-login" id="btn-email-migracao" onclick="confirmarEmailMigracao()">
-      <span class="spinner" id="spin-email"></span>
-      <span id="txt-email">Confirmar e entrar</span>
-    </button>
-  </div>
-</div>
 
-<!-- ════════════════ MODAL LOGIN ════════════════ -->
-<div class="overlay" id="overlay">
-  <div class="modal-card">
-    <button class="close-btn" onclick="fecharLogin()">✕</button>
-    <div class="modal-logo">
-      <img src="sided_logo.png" alt="SIDED+"/>
-      <div>
-        <div class="modal-logo-name">SIDED<span>+</span></div>
-        <div class="modal-logo-sub">Diário Escolar Digital</div>
-      </div>
-    </div>
-    <div class="modal-title">Bem-vindo de volta</div>
-    <div class="modal-sub">Acesse com seu login institucional</div>
-    <div id="error-msg" class="error-msg"></div>
-    <div class="form-group">
-      <label class="form-label">E-mail, login ou CPF</label>
-      <input class="form-input" id="inp-login" type="text" placeholder="E-mail, login institucional ou CPF" autocomplete="username" oninput="mascaraLoginCpf(this)"/>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Senha</label>
-      <div class="input-wrap">
-        <input class="form-input" id="inp-senha" type="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:46px"/>
-        <button class="eye-btn" onclick="toggleSenha()" type="button">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-          </svg>
+    <div class="field">
+      <label for="inp-senha">Senha</label>
+      <div class="control">
+        <span class="ico">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </span>
+        <input id="inp-senha" type="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:52px"/>
+        <button class="eye-btn" id="eye-btn" onclick="toggleSenha()" type="button" aria-label="Mostrar ou ocultar senha">
+          <svg id="eye-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
       </div>
     </div>
+
     <button class="btn-login" id="btn-login" onclick="fazerLogin()">
       <span class="spinner" id="spinner"></span>
       <span id="btn-txt">Entrar</span>
+      <svg class="arrow" id="btn-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
     </button>
-    <div class="divider"><span>ou</span></div>
-    <button id="btn-passkey" onclick="loginPasskey()" style="display:none;width:100%;padding:13px;border-radius:12px;border:1.5px solid #DBE4FF;background:#F5F8FF;color:#1B2550;font-family:'Sora',sans-serif;font-size:14px;font-weight:600;cursor:pointer;align-items:center;justify-content:center;gap:10px;margin-bottom:8px;">
-      🔑 Entrar com chave de acesso
-    </button>
-    <button class="btn-google" onclick="loginGoogle()">
-      <svg viewBox="0 0 48 48">
-        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-      </svg>
-      Entrar com Google
-    </button>
-    <p class="signup-link">Não tem conta? <a href="#" onclick="fecharLogin();abrirCad()">Criar conta grátis →</a></p>
-  </div>
-</div>
 
+    <div class="divider"><span>ou continue com</span></div>
 
-<!-- ════════════════ MODAL CADASTRO ════════════════ -->
-<div class="overlay" id="overlay-cad">
-  <div class="modal-card modal-card-wide" id="cad-card">
-    <button class="close-btn" onclick="fecharCad()">✕</button>
-
-    <!-- STEP 0 -->
-    <div id="cad-step-0">
-      <div class="modal-logo">
-        <img src="sided_logo.png" alt="SIDED+"/>
-        <div>
-          <div class="modal-logo-name">SIDED<span>+</span></div>
-          <div class="modal-logo-sub">Diário Escolar Digital</div>
-        </div>
-      </div>
-      <div class="modal-title" style="margin-bottom:4px">Criar conta</div>
-      <div class="modal-sub" style="margin-bottom:28px">Comece sua jornada educacional</div>
-      <button class="btn-google" onclick="cadGoogle()" style="margin-bottom:12px">
+    <div class="alt-row">
+      <button class="alt-btn" id="btn-passkey" onclick="loginPasskey()" type="button">
+        🔑 Chave de acesso
+      </button>
+      <button class="alt-btn" onclick="loginGoogle()" type="button">
         <svg viewBox="0 0 48 48">
           <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
           <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
           <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
           <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
         </svg>
-        Cadastrar com Google
+        Google
       </button>
-      <div class="divider"><span>ou</span></div>
-      <button class="btn-login btn-secondary-action" onclick="irStepManual()">✏️ Cadastro manual</button>
-      <p class="signup-link">Já tem conta? <a href="#" onclick="fecharCad();abrirLogin()">Entrar →</a></p>
     </div>
 
-    <!-- STEP 1 -->
-    <div id="cad-step-1" style="display:none">
-      <div class="cad-progress"><div class="cad-prog-bar" style="width:25%"></div></div>
-      <div class="cad-step-label">Passo 1 de 4 · Dados pessoais</div>
-      <div class="modal-title" style="margin:16px 0 4px">Quem é você?</div>
-      <div class="modal-sub" style="margin-bottom:24px">Preencha suas informações básicas</div>
-      <div id="cad-err-1" class="error-msg"></div>
-      <div class="form-group">
-        <label class="form-label">Nome completo</label>
-        <input class="form-input" id="cad-nome" type="text" placeholder="Ex: Maria da Silva" autocomplete="name"/>
-      </div>
-      <div class="form-group">
-        <label class="form-label">E-mail</label>
-        <input class="form-input" id="cad-email" type="email" placeholder="professor@escola.com.br" autocomplete="email"/>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Senha</label>
-        <div class="input-wrap">
-          <input class="form-input" id="cad-senha" type="password" placeholder="Mínimo 6 caracteres" style="padding-right:46px"/>
-          <button class="eye-btn" onclick="toggleCadSenha()" type="button">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Login institucional</label>
-        <input class="form-input" id="cad-login" type="text" placeholder="Ex: maria.silva" autocomplete="username"/>
-      </div>
-      <button class="btn-login" onclick="irStep2()">Continuar →</button>
-      <p class="cad-back" onclick="irStep(0)">← Voltar</p>
-    </div>
-
-    <!-- STEP 2 -->
-    <div id="cad-step-2" style="display:none">
-      <div class="cad-progress"><div class="cad-prog-bar" style="width:50%"></div></div>
-      <div class="cad-step-label">Passo 2 de 4 · Escola</div>
-      <div class="modal-title" style="margin:16px 0 4px">Onde você leciona?</div>
-      <div class="modal-sub" style="margin-bottom:24px">Selecione ou adicione sua(s) escola(s)</div>
-      <div id="cad-err-2" class="error-msg"></div>
-      <div class="escola-tags" id="escolas-selecionadas"></div>
-      <div class="form-group" style="position:relative">
-        <label class="form-label">Buscar escola cadastrada</label>
-        <input class="form-input" id="cad-busca-escola" type="text" placeholder="Digite o nome da escola..." autocomplete="off" oninput="buscarEscola(this.value)" onfocus="this.dispatchEvent(new Event('input'))"/>
-        <div class="escola-drop" id="escola-drop"></div>
-      </div>
-      <div class="divider"><span>ou</span></div>
-      <div class="form-group">
-        <label class="form-label">Criar nova escola</label>
-        <input class="form-input" id="cad-nova-escola" type="text" placeholder="Nome da nova escola"/>
-      </div>
-      <button class="btn-login btn-secondary-action" onclick="adicionarNovaEscola()" style="margin-bottom:12px">+ Adicionar escola</button>
-      <button class="btn-login" onclick="irStep3()">Continuar →</button>
-      <p class="cad-back" onclick="irStep(1)">← Voltar</p>
-    </div>
-
-    <!-- STEP 3 -->
-    <div id="cad-step-3" style="display:none">
-      <div class="cad-progress"><div class="cad-prog-bar" style="width:75%"></div></div>
-      <div class="cad-step-label">Passo 3 de 4 · Ano letivo</div>
-      <div class="modal-title" style="margin:16px 0 4px">Como funciona seu ano?</div>
-      <div class="modal-sub" style="margin-bottom:24px">Configure a divisão de períodos e calendário</div>
-      <div id="cad-err-3" class="error-msg"></div>
-      <div class="periodo-cards">
-        <div class="periodo-card">
-          <input type="radio" name="periodo" id="p-bim" value="bimestre"/>
-          <label class="periodo-label" for="p-bim">
-            <span class="periodo-emoji">📅</span>
-            <span class="periodo-name">Bimestre</span>
-            <span class="periodo-sub">4 períodos</span>
-          </label>
-        </div>
-        <div class="periodo-card">
-          <input type="radio" name="periodo" id="p-tri" value="trimestre" checked/>
-          <label class="periodo-label" for="p-tri">
-            <span class="periodo-emoji">🗓️</span>
-            <span class="periodo-name">Trimestre</span>
-            <span class="periodo-sub">3 períodos</span>
-          </label>
-        </div>
-        <div class="periodo-card">
-          <input type="radio" name="periodo" id="p-sem" value="semestre"/>
-          <label class="periodo-label" for="p-sem">
-            <span class="periodo-emoji">📆</span>
-            <span class="periodo-name">Semestre</span>
-            <span class="periodo-sub">2 períodos</span>
-          </label>
-        </div>
-        <div class="periodo-card">
-          <input type="radio" name="periodo" id="p-anu" value="anual"/>
-          <label class="periodo-label" for="p-anu">
-            <span class="periodo-emoji">🏫</span>
-            <span class="periodo-name">Anual</span>
-            <span class="periodo-sub">Sem divisão</span>
-          </label>
-        </div>
-      </div>
-      <div class="datas-grid" style="margin-bottom:20px">
-        <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Início (opcional)</label>
-          <input class="form-input" id="cad-data-inicio" type="date"/>
-        </div>
-        <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Fim (opcional)</label>
-          <input class="form-input" id="cad-data-fim" type="date"/>
-        </div>
-      </div>
-      <button class="btn-login" onclick="irStep4()">Continuar →</button>
-      <p class="cad-back" onclick="irStep(2)">← Voltar</p>
-    </div>
-
-    <!-- STEP 4 - Confirm -->
-    <div id="cad-step-4-confirm" style="display:none">
-      <div class="cad-progress"><div class="cad-prog-bar" style="width:100%"></div></div>
-      <div class="cad-step-label">Passo 4 de 4 · Finalizar</div>
-      <div class="modal-title" style="margin:16px 0 4px">Quase lá! 🎉</div>
-      <div class="modal-sub" style="margin-bottom:24px">Revise seus dados e escolha seu perfil</div>
-      <div id="cad-err-4" class="error-msg"></div>
-      <div class="resumo-box" id="cad-resumo"></div>
-      <div style="margin-bottom:16px">
-        <div class="form-label" style="margin-bottom:12px">Perfil de acesso</div>
-        <div class="role-cards">
-          <div class="role-card">
-            <input type="radio" name="role" id="r-ind" value="professor_individual" checked/>
-            <label class="role-label" for="r-ind">
-              <span class="role-emoji">🧑‍🏫</span>
-              <div>
-                <div class="role-name">Professor independente</div>
-                <div class="role-desc">Cria e gerencia suas próprias turmas, chamadas e notas</div>
-              </div>
-            </label>
-          </div>
-          <div class="role-card">
-            <input type="radio" name="role" id="r-esc" value="professor_escola"/>
-            <label class="role-label" for="r-esc">
-              <span class="role-emoji">🏫</span>
-              <div>
-                <div class="role-name">Professor de escola</div>
-                <div class="role-desc">Aguarda vínculo com escola e turmas pela direção</div>
-              </div>
-            </label>
-          </div>
-          <div class="role-card">
-            <input type="radio" name="role" id="r-dir" value="diretor"/>
-            <label class="role-label" for="r-dir">
-              <span class="role-emoji">🏛️</span>
-              <div>
-                <div class="role-name">Diretor</div>
-                <div class="role-desc">Gerencia escola, professores, turmas e relatórios</div>
-              </div>
-            </label>
-          </div>
-        </div>
-      </div>
-      <button class="btn-login" id="btn-cadastrar" onclick="finalizarCadastro()">
-        <span class="spinner" id="spin-cad"></span>
-        <span id="txt-cad">Criar minha conta</span>
-      </button>
-      <p class="cad-back" onclick="irStep(3)">← Voltar</p>
-    </div>
-
-    <!-- STEP SUCESSO -->
-    <div id="cad-step-sucesso" style="display:none; text-align:center">
-      <div class="success-check">🎊</div>
-      <div class="modal-title" style="margin-bottom:8px">Conta criada com sucesso!</div>
-      <div class="modal-sub" style="margin-bottom:28px">Bem-vindo(a) ao SIDED+</div>
-      <div id="cad-turma-box" style="display:none" class="turma-box">
-        <div class="turma-title">🚀 Crie sua primeira turma</div>
-        <div class="turma-sub">Como professor independente, você pode começar agora mesmo!</div>
-        <div class="turma-input-row">
-          <input class="form-input" id="nome-turma" type="text" placeholder="Ex: 3º Ano A"/>
-          <button class="btn-login btn-success" style="width:auto;padding:0 18px;margin:0" onclick="criarTurma()">✓</button>
-        </div>
-      </div>
-      <button class="btn-login" style="margin-top:20px" onclick="irParaDashboard()">Entrar no sistema →</button>
+    <div class="secure">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Conexão segura e criptografada
     </div>
 
   </div>
-</div>
-
+</main>
 
 <script>
   // ═══ CONSTANTS ═══
   const SB_URL = 'https://biocjxggjjfeqmpuysik.supabase.co';
   const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpb2NqeGdnampmZXFtcHV5c2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODUwOTQsImV4cCI6MjA4OTc2MTA5NH0.3bL3dKqiWGoHROE6vSzf-7Orp0GLcLpn4mHtUSwC0dU';
-  const GOOGLE_CLIENT_ID = '809381065699-dm4ie2ob9kioi4nh1ureufkorcc77kck.apps.googleusercontent.com';
   const DASH = 'dashboard.html';
+  const GOOGLE_CLIENT_ID = '809381065699-dm4ie2ob9kioi4nh1ureufkorcc77kck.apps.googleusercontent.com';
 
-  // ═══ SUPABASE CLIENT ═══
-  let _supabase = null;
-  function getSupabase() {
-    if (!_supabase) _supabase = window.supabase.createClient(SB_URL, SB_KEY);
-    return _supabase;
-  }
-  const sbClient = {
-    auth: {
-      signInWithPassword: (...a) => getSupabase().auth.signInWithPassword(...a),
-      signUp: (...a) => getSupabase().auth.signUp(...a),
-      getSession: (...a) => getSupabase().auth.getSession(...a),
-      signInWithOtp: (...a) => getSupabase().auth.signInWithOtp(...a),
-      verifyOtp: (...a) => getSupabase().auth.verifyOtp(...a),
-      updateUser: (...a) => getSupabase().auth.updateUser(...a),
-    },
-    from: (...a) => getSupabase().from(...a)
-  };
-
-  // ═══ ROTAS POR ROLE ═══
   const ROTAS = {
     professor: 'professor_dashboard.html',
     professor_individual: 'professorindividual_dashboard.html',
@@ -1851,84 +674,39 @@
     representante: 'representante_dashboard.html'
   };
 
-  // Usuário temporário durante migração de email
-  let _userPendente = null;
-
-  // ═══ REVEAL ANIMATION ═══
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        e.target.classList.add('visible');
-        observer.unobserve(e.target);
-      }
-    });
-  }, { threshold: 0.1 });
-
-  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-
-  // ═══ MODAL ═══
-  function abrirLogin() {
-    document.getElementById('overlay').classList.add('active');
-    document.body.style.overflow = 'hidden';
-    _pkAtualizarBotao();
-    setTimeout(() => document.getElementById('inp-login').focus(), 300);
+  let _supabase = null;
+  function getSupabase() {
+    if (!_supabase) _supabase = window.supabase.createClient(SB_URL, SB_KEY);
+    return _supabase;
   }
 
-  function fecharLogin() {
-    document.getElementById('overlay').classList.remove('active');
-    document.body.style.overflow = '';
-  }
+  // ═══ UI ═══
+  const EYE_ON = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  const EYE_OFF = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
 
-  function abrirCad() {
-    document.getElementById('overlay-cad').classList.add('active');
-    document.body.style.overflow = 'hidden';
-    irStep(0);
-  }
-
-  function fecharCad() {
-    document.getElementById('overlay-cad').classList.remove('active');
-    document.body.style.overflow = '';
-  }
-
-  document.getElementById('overlay').addEventListener('click', function(e) {
-    if (e.target === this) fecharLogin();
-  });
-
-  document.getElementById('overlay-cad').addEventListener('click', function(e) {
-    if (e.target === this) fecharCad();
-  });
-
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { fecharLogin(); fecharCad(); }
-  });
-
-  // ═══ LOGIN ═══
   function toggleSenha() {
     const inp = document.getElementById('inp-senha');
-    inp.type = inp.type === 'password' ? 'text' : 'password';
-  }
-
-  function toggleCadSenha() {
-    const inp = document.getElementById('cad-senha');
-    inp.type = inp.type === 'password' ? 'text' : 'password';
+    const mostrar = inp.type === 'password';
+    inp.type = mostrar ? 'text' : 'password';
+    document.getElementById('eye-svg').innerHTML = mostrar ? EYE_OFF : EYE_ON;
   }
 
   function mostrarErro(msg) {
-    const el = document.getElementById('error-msg');
-    el.textContent = msg;
-    el.style.display = 'block';
+    const box = document.getElementById('error-msg');
+    document.getElementById('error-text').textContent = msg;
+    box.classList.remove('show');
+    void box.offsetWidth; // reinicia animação
+    box.classList.add('show');
   }
 
   function esconderErro() {
-    document.getElementById('error-msg').style.display = 'none';
+    document.getElementById('error-msg').classList.remove('show');
   }
 
-  // Aplica máscara de CPF automaticamente apenas quando o usuário está
-  // digitando números (login/e-mail continuam livres, sem interferência)
+  // Máscara de CPF só quando o usuário digita apenas números
   function mascaraLoginCpf(el) {
     const raw = el.value;
-    const somenteNumeros = /^[0-9.\-]*$/.test(raw);
-    if (!somenteNumeros) return; // é login ou e-mail, não mexe
+    if (!/^[0-9.\-]*$/.test(raw)) return; // login ou e-mail: não mexe
     let v = raw.replace(/\D/g, '').slice(0, 11);
     if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
     else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
@@ -1936,25 +714,27 @@
     el.value = v;
   }
 
+  // ═══ LOGIN ═══
   async function fazerLogin() {
     esconderErro();
     const login = document.getElementById('inp-login').value.trim();
     const senha = document.getElementById('inp-senha').value;
     if (!login || !senha) { mostrarErro('Preencha login e senha.'); return; }
+
     const btn = document.getElementById('btn-login');
     const spinner = document.getElementById('spinner');
+    const arrow = document.getElementById('btn-arrow');
     const txt = document.getElementById('btn-txt');
-    btn.disabled = true; spinner.style.display = 'block'; txt.textContent = 'Entrando...';
+    btn.disabled = true; spinner.style.display = 'block'; arrow.style.display = 'none'; txt.textContent = 'Entrando...';
+
     try {
-      // 1. Busca usuário na public.users pelo login+senha
       const res = await fetch(`${SB_URL}/rest/v1/rpc/buscar_usuario_login`, {
         method: 'POST',
         headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ p_login: login, p_senha: senha })
       });
       const text = await res.text();
-      console.log('[login] status:', res.status, 'body:', text);
-      if (!res.ok || !text || text === '[]' || text === '') {
+      if (!res.ok || !text || text === '[]') {
         mostrarErro('Login ou senha incorretos.');
         return;
       }
@@ -1965,224 +745,79 @@
       }
       const user = data[0];
 
-      // 2. Tem email? Tenta logar via Supabase Auth
+      // Se o usuário tem e-mail, tenta abrir sessão no Supabase Auth (sem bloquear o acesso)
       if (user.email) {
-        const { data: authData, error: authError } = await sbClient.auth.signInWithPassword({
-          email: user.email,
-          password: senha
-        });
-        if (!authError && authData?.session) {
-          // Auth OK — segue normalmente
-          sessionStorage.setItem('ded_user', JSON.stringify(user));
-          await _pkOferecer(user);
-          window.location.href = ROTAS[user.role] || DASH;
-          return;
-        }
-        // Auth falhou mas usuário existe na public.users — provavelmente não migrado ainda
-        // Tenta criar no auth agora
-        await _migrarParaAuth(user, senha);
-        return;
+        try {
+          await getSupabase().auth.signInWithPassword({ email: user.email, password: senha });
+        } catch (e) { console.warn('[auth]', e); }
       }
 
-      // 3. Sem email — pede email pro usuário
-      fecharLogin();
-      _userPendente = { ...user, senha };
-      const overlayEmail = document.getElementById('overlay-email');
-      overlayEmail.style.display = 'flex';
-      setTimeout(() => document.getElementById('inp-email-migracao').focus(), 200);
-
-    } catch(e) {
+      sessionStorage.setItem('ded_user', JSON.stringify(user));
+      await _pkOferecer(user);
+      window.location.href = ROTAS[user.role] || DASH;
+    } catch (e) {
+      console.error(e);
       mostrarErro('Erro de conexão. Verifique sua internet.');
-      console.error(e);
     } finally {
-      btn.disabled = false; spinner.style.display = 'none'; txt.textContent = 'Entrar';
+      btn.disabled = false; spinner.style.display = 'none'; arrow.style.display = ''; txt.textContent = 'Entrar';
     }
   }
 
-  async function _migrarParaAuth(user, senha) {
-    try {
-      const { error } = await sbClient.auth.signUp({
-        email: user.email,
-        password: senha,
-        options: { data: { role: user.role, nome: user.nome } }
-      });
-      if (!error || error.message === 'User already registered') {
-        // Tenta logar — se email já confirmado entra, senão pede confirmação
-        const { data: authData, error: loginError } = await sbClient.auth.signInWithPassword({ email: user.email, password: senha });
-        if (authData?.session) {
-          sessionStorage.setItem('ded_user', JSON.stringify(user));
-          await _pkOferecer(user);
-          window.location.href = ROTAS[user.role] || DASH;
-          return;
+  // ═══ GOOGLE ═══
+  function loginGoogle() {
+    esconderErro();
+    if (!window.google?.accounts?.oauth2) {
+      mostrarErro('Login com Google indisponível no momento. Tente novamente.');
+      return;
+    }
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'openid email profile',
+      callback: async (response) => {
+        if (response.error) { mostrarErro('Erro ao autenticar com o Google.'); return; }
+        try {
+          const profile = await (await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${response.access_token}` }
+          })).json();
+          if (!profile.email) { mostrarErro('Não foi possível obter o e-mail do Google.'); return; }
+          const res = await fetch(`${SB_URL}/rest/v1/users?email=ilike.${encodeURIComponent(profile.email)}&select=id,login,role,nome,email,escola_id,escolas_ids`, {
+            headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+          });
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            sessionStorage.setItem('ded_user', JSON.stringify(data[0]));
+            await _pkOferecer(data[0]);
+            window.location.href = ROTAS[data[0].role] || DASH;
+          } else {
+            mostrarErro('Conta não encontrada para este e-mail do Google.');
+          }
+        } catch (e) {
+          console.error(e);
+          mostrarErro('Erro ao obter dados do Google.');
         }
-        // Email não confirmado ainda — mostra aviso
-        if (loginError?.message?.includes('Email not confirmed')) {
-          mostrarErro('Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada.');
-          return;
-        }
       }
-    } catch(e) { console.error('[Auth migrar]', e); }
-    // Fallback: entra sem auth (temporário)
-    sessionStorage.setItem('ded_user', JSON.stringify(user));
-    await _pkOferecer(user);
-    window.location.href = ROTAS[user.role] || DASH;
+    });
+    client.requestAccessToken();
   }
 
-  // Guarda email temporariamente para o OTP
-  let _emailOtpPendente = '';
-
-  async function confirmarEmailMigracao() {
-    const email = document.getElementById('inp-email-migracao').value.trim();
-    const emailConfirm = document.getElementById('inp-email-migracao-confirm').value.trim();
-    const errEl = document.getElementById('error-msg-email');
-    errEl.style.display = 'none';
-    if (!email || !email.includes('@')) {
-      errEl.textContent = 'Informe um e-mail válido.';
-      errEl.style.display = 'block';
-      return;
-    }
-    if (email !== emailConfirm) {
-      errEl.textContent = 'Os e-mails não coincidem. Verifique e tente novamente.';
-      errEl.style.display = 'block';
-      return;
-    }
-    const btn = document.getElementById('btn-email-migracao');
-    const spin = document.getElementById('spin-email');
-    const txt = document.getElementById('txt-email');
-    btn.disabled = true; spin.style.display = 'block'; txt.textContent = 'Enviando código...';
-    try {
-      // Salva email na public.users
-      await fetch(`${SB_URL}/rest/v1/users?id=eq.${_userPendente.id}`, {
-        method: 'PATCH',
-        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-      // Envia OTP por e-mail via Supabase
-      const { error } = await sbClient.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
-      if (error) {
-        console.error('[confirmarEmail] OTP error:', error.message);
-        errEl.textContent = 'Erro ao enviar código. Verifique o e-mail e tente novamente.';
-        errEl.style.display = 'block';
-        return;
-      }
-      _emailOtpPendente = email;
-      // Muda overlay para tela de código
-      const modalCard = document.querySelector('#overlay-email .modal-card');
-      modalCard.innerHTML = `
-        <div style="text-align:center;padding:8px 0">
-          <div style="font-size:48px;margin-bottom:12px">📬</div>
-          <div class="modal-title" style="margin-bottom:8px">Verifique seu e-mail</div>
-          <div class="modal-sub" style="margin-bottom:20px">
-            Enviamos um código de 6 dígitos para<br/><strong>${email}</strong>
-          </div>
-          <div id="error-msg-otp" class="error-msg"></div>
-          <div class="form-group" style="text-align:left">
-            <label class="form-label">Código de verificação</label>
-            <input class="form-input" id="inp-otp" type="number" maxlength="6" placeholder="000000"
-              style="font-size:24px;text-align:center;letter-spacing:8px"
-              oninput="if(this.value.length>6)this.value=this.value.slice(0,6)"
-            />
-          </div>
-          <button class="btn-login" id="btn-verificar-otp" onclick="verificarOtp()" style="margin-top:8px">
-            <span id="spin-otp" class="spinner" style="display:none"></span>
-            <span id="txt-otp">Verificar e entrar</span>
-          </button>
-          <div style="margin-top:16px;font-size:13px;color:var(--text-muted)">
-            Não recebeu? 
-            <a href="#" onclick="reenviarOtp(event)" style="color:var(--primary)">Reenviar código</a>
-          </div>
-        </div>
-      `;
-      setTimeout(() => document.getElementById('inp-otp')?.focus(), 100);
-    } catch(e) {
-      errEl.textContent = 'Erro de conexão. Tente novamente.';
-      errEl.style.display = 'block';
-      console.error(e);
-    } finally {
-      btn.disabled = false; spin.style.display = 'none'; txt.textContent = 'Confirmar e entrar';
-    }
-  }
-
-  async function verificarOtp() {
-    const token = document.getElementById('inp-otp').value.trim();
-    const errEl = document.getElementById('error-msg-otp');
-    errEl.style.display = 'none';
-    if (!token || token.length !== 6) {
-      errEl.textContent = 'Digite o código de 6 dígitos.';
-      errEl.style.display = 'block';
-      return;
-    }
-    const btn = document.getElementById('btn-verificar-otp');
-    const spin = document.getElementById('spin-otp');
-    const txt = document.getElementById('txt-otp');
-    btn.disabled = true; spin.style.display = 'block'; txt.textContent = 'Verificando...';
-    try {
-      const { data, error } = await sbClient.auth.verifyOtp({
-        email: _emailOtpPendente,
-        token,
-        type: 'email'
-      });
-      if (error) {
-        console.error('[verificarOtp] error:', error.message);
-        errEl.textContent = 'Código inválido ou expirado. Tente novamente.';
-        errEl.style.display = 'block';
-        btn.disabled = false; spin.style.display = 'none'; txt.textContent = 'Verificar e entrar';
-        return;
-      }
-      // OTP válido — atualiza senha no Supabase Auth e loga
-      if (_userPendente.senha) {
-        await sbClient.auth.updateUser({ password: _userPendente.senha });
-      }
-      sessionStorage.setItem('ded_user', JSON.stringify(_userPendente));
-      document.getElementById('overlay-email').style.display = 'none';
-      window.location.href = ROTAS[_userPendente.role] || DASH;
-    } catch(e) {
-      errEl.textContent = 'Erro de conexão. Tente novamente.';
-      errEl.style.display = 'block';
-      console.error(e);
-      btn.disabled = false; spin.style.display = 'none'; txt.textContent = 'Verificar e entrar';
-    }
-  }
-
-  async function reenviarOtp(e) {
-    e.preventDefault();
-    const errEl = document.getElementById('error-msg-otp');
-    errEl.style.display = 'none';
-    const { error } = await sbClient.auth.signInWithOtp({ email: _emailOtpPendente, options: { shouldCreateUser: false } });
-    if (error) {
-      errEl.textContent = 'Erro ao reenviar. Aguarde um momento e tente novamente.';
-      errEl.style.display = 'block';
-    } else {
-      errEl.style.color = 'green';
-      errEl.textContent = 'Código reenviado! Verifique seu e-mail.';
-      errEl.style.display = 'block';
-      setTimeout(() => { errEl.style.display = 'none'; errEl.style.color = ''; }, 4000);
-    }
-  }
-
-
-  // ═══════════════════════════════════════════════════════════
-  // PASSKEY (WebAuthn) — login biométrico sem senha
-  // Chave armazenada no sessionStorage como 'sided_passkey_user'
-  // ═══════════════════════════════════════════════════════════
-
-  const _PK_KEY = 'sided_passkey_cred'; // credentialId salvo
+  // ═══ PASSKEY (WebAuthn) ═══
+  const _PK_KEY = 'sided_passkey_cred';
+  const _PK_LABEL = '🔑 Chave de acesso';
 
   function _pkDisponivel() {
     return !!(window.PublicKeyCredential && navigator.credentials?.create);
   }
 
-  // Converte base64url ↔ ArrayBuffer
   function _b64ToBuffer(b64) {
-    const s = atob(b64.replace(/-/g,'+').replace(/_/g,'/'));
+    const s = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
     return Uint8Array.from(s, c => c.charCodeAt(0)).buffer;
   }
+
   function _bufferToB64(buf) {
     return btoa(String.fromCharCode(...new Uint8Array(buf)))
-      .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   }
 
-  // Registrar passkey após login bem-sucedido
   async function _pkRegistrar(user) {
     if (!_pkDisponivel()) return;
     try {
@@ -2194,11 +829,11 @@
           user: {
             id: new TextEncoder().encode(String(user.id)),
             name: user.login || user.email || String(user.id),
-            displayName: user.nome || user.login || 'Professor'
+            displayName: user.nome || user.login || 'Usuário'
           },
           pubKeyCredParams: [
-            { type: 'public-key', alg: -7  },  // ES256
-            { type: 'public-key', alg: -257 }  // RS256
+            { type: 'public-key', alg: -7 },
+            { type: 'public-key', alg: -257 }
           ],
           authenticatorSelection: {
             authenticatorAttachment: 'platform',
@@ -2208,340 +843,58 @@
           timeout: 60000
         }
       });
-      // Salva o credentialId e o user associado
-      const pkData = {
+      localStorage.setItem(_PK_KEY, JSON.stringify({
         credId: _bufferToB64(cred.rawId),
         user: { id: user.id, login: user.login, role: user.role, nome: user.nome, email: user.email }
-      };
-      localStorage.setItem(_PK_KEY, JSON.stringify(pkData));
-      console.info('[PASSKEY] Registrada com sucesso para', user.login);
-    } catch(e) {
-      // Usuário cancelou ou dispositivo não suporta — silencioso
+      }));
+    } catch (e) {
       console.warn('[PASSKEY] Registro cancelado:', e.message);
     }
   }
 
-  // Autenticar via passkey
+  async function _pkOferecer(user) {
+    if (!_pkDisponivel()) return;
+    if (localStorage.getItem(_PK_KEY)) return;
+    if (confirm('Deseja cadastrar uma chave de acesso (biometria/PIN) para entrar mais rápido na próxima vez?')) {
+      await _pkRegistrar(user);
+    }
+  }
+
   async function loginPasskey() {
-    if (!_pkDisponivel()) {
-      mostrarErro('Este dispositivo não suporta chaves de acesso.');
-      return;
-    }
+    esconderErro();
+    if (!_pkDisponivel()) { mostrarErro('Este dispositivo não suporta chaves de acesso.'); return; }
     const pkData = JSON.parse(localStorage.getItem(_PK_KEY) || 'null');
-    if (!pkData) {
-      mostrarErro('Nenhuma chave de acesso cadastrada. Faça login com senha primeiro.');
-      return;
-    }
+    if (!pkData) { mostrarErro('Nenhuma chave de acesso cadastrada. Faça login com senha primeiro.'); return; }
     const btn = document.getElementById('btn-passkey');
-    if (btn) { btn.disabled = true; btn.textContent = 'Verificando...'; }
+    btn.disabled = true; btn.textContent = 'Verificando...';
     try {
-      const challenge = crypto.getRandomValues(new Uint8Array(32));
-      const assertion = await navigator.credentials.get({
+      await navigator.credentials.get({
         publicKey: {
-          challenge,
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
           allowCredentials: [{ type: 'public-key', id: _b64ToBuffer(pkData.credId) }],
           userVerification: 'required',
           timeout: 60000
         }
       });
-      // Autenticação WebAuthn OK — restaura sessão
       sessionStorage.setItem('ded_user', JSON.stringify(pkData.user));
       window.location.href = ROTAS[pkData.user.role] || DASH;
-    } catch(e) {
-      if (e.name !== 'NotAllowedError') {
-        mostrarErro('Falha na verificação. Tente com login e senha.');
-      }
+    } catch (e) {
+      if (e.name !== 'NotAllowedError') mostrarErro('Falha na verificação. Tente com login e senha.');
       console.warn('[PASSKEY] Autenticação falhou:', e.message);
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = '🔑 Entrar com chave de acesso'; }
+      btn.disabled = false; btn.textContent = _PK_LABEL;
     }
   }
 
-  // Pergunta se quer cadastrar passkey após login bem-sucedido
-  async function _pkOferecer(user) {
-    if (!_pkDisponivel()) return;
-    const jaTemChave = localStorage.getItem(_PK_KEY);
-    if (jaTemChave) return; // já cadastrou, não perguntar de novo
-    const aceito = confirm('Deseja cadastrar uma chave de acesso (biometria/PIN) para entrar mais rápido na próxima vez?');
-    if (aceito) await _pkRegistrar(user);
-  }
-
-  // Mostrar/ocultar botão de passkey conforme disponibilidade
   function _pkAtualizarBotao() {
     const btn = document.getElementById('btn-passkey');
-    if (!btn) return;
-    const temChave = !!localStorage.getItem(_PK_KEY);
-    btn.style.display = (_pkDisponivel() && temChave) ? 'flex' : 'none';
+    btn.style.display = (_pkDisponivel() && localStorage.getItem(_PK_KEY)) ? 'flex' : 'none';
   }
+  _pkAtualizarBotao();
 
-  document.getElementById('inp-senha').addEventListener('keydown', e => {
-    if (e.key === 'Enter') fazerLogin();
-  });
-
-  async function loginGoogle() {
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: 'openid email profile',
-      callback: async (response) => {
-        if (response.error) { alert('Erro ao autenticar com o Google.'); return; }
-        try {
-          const profile = await (await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: `Bearer ${response.access_token}` }
-          })).json();
-          if (!profile.email) { alert('Não foi possível obter o e-mail.'); return; }
-          const res = await fetch(`${SB_URL}/rest/v1/users?email=ilike.${encodeURIComponent(profile.email)}&select=id,login,role,nome,escola_id,escolas_ids`, {
-            headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
-          });
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            sessionStorage.setItem('ded_user', JSON.stringify(data[0]));
-            window.location.href = ROTAS[data[0].role] || DASH;
-          } else {
-            mostrarErro('Conta não encontrada. Crie uma conta primeiro.');
-          }
-        } catch { alert('Erro ao obter dados do Google.'); }
-      }
-    });
-    client.requestAccessToken();
-  }
-
-  // ═══ CADASTRO ═══
-  let cadData = {};
-  let escolasSelecionadas = [];
-
-  function irStep(n) {
-    document.querySelectorAll('[id^="cad-step-"]').forEach(el => el.style.display = 'none');
-    const target = document.getElementById(`cad-step-${n}`);
-    if (target) target.style.display = 'block';
-    document.getElementById('cad-card').scrollTop = 0;
-  }
-
-  function irStepManual() { irStep(1); }
-
-  function mostrarErroCad(step, msg) {
-    const el = document.getElementById(`cad-err-${step}`);
-    if (el) { el.textContent = msg; el.style.display = 'block'; }
-  }
-
-  function esconderErroCad(step) {
-    const el = document.getElementById(`cad-err-${step}`);
-    if (el) el.style.display = 'none';
-  }
-
-  function irStep2() {
-    esconderErroCad(1);
-    const nome = document.getElementById('cad-nome').value.trim();
-    const email = document.getElementById('cad-email').value.trim();
-    const senha = document.getElementById('cad-senha').value;
-    const login = document.getElementById('cad-login').value.trim();
-    if (!nome) { mostrarErroCad(1, 'Informe seu nome.'); return; }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { mostrarErroCad(1, 'Informe um e-mail válido.'); return; }
-    if (!senha || senha.length < 6) { mostrarErroCad(1, 'A senha deve ter pelo menos 6 caracteres.'); return; }
-    if (!login) { mostrarErroCad(1, 'Informe um login institucional.'); return; }
-    cadData.nome = nome; cadData.email = email; cadData.senha = senha; cadData.login = login;
-    irStep(2);
-  }
-
-  let escolaTimeout;
-  async function buscarEscola(q) {
-    clearTimeout(escolaTimeout);
-    const drop = document.getElementById('escola-drop');
-    if (!q || q.length < 2) { drop.classList.remove('active'); return; }
-    escolaTimeout = setTimeout(async () => {
-      try {
-        const res = await fetch(`${SB_URL}/rest/v1/escolas?nome=ilike.*${encodeURIComponent(q)}*&select=id,nome&limit=5`, {
-          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
-        });
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          drop.innerHTML = data.map(e => `<div class="escola-drop-item" onclick="selecionarEscola('${e.id}','${escapeHtml(e.nome)}')">${escapeHtml(e.nome)}</div>`).join('');
-          drop.classList.add('active');
-        } else {
-          drop.classList.remove('active');
-        }
-      } catch { drop.classList.remove('active'); }
-    }, 300);
-  }
-
-  function selecionarEscola(id, nome) {
-    if (escolasSelecionadas.find(e => e.id === id)) return;
-    escolasSelecionadas.push({ id, nome });
-    document.getElementById('cad-busca-escola').value = '';
-    document.getElementById('escola-drop').classList.remove('active');
-    renderEscolaTags();
-  }
-
-  function removerEscola(id) {
-    escolasSelecionadas = escolasSelecionadas.filter(e => e.id !== id);
-    renderEscolaTags();
-  }
-
-  function renderEscolaTags() {
-    const container = document.getElementById('escolas-selecionadas');
-    container.innerHTML = escolasSelecionadas.map(e => `
-      <span class="escola-tag">${e.nome}<button onclick="removerEscola('${e.id}')">✕</button></span>
-    `).join('');
-  }
-
-  async function adicionarNovaEscola() {
-    const nome = document.getElementById('cad-nova-escola').value.trim();
-    if (!nome) { mostrarErroCad(2, 'Informe o nome da nova escola.'); return; }
-    esconderErroCad(2);
-    try {
-      const check = await fetch(`${SB_URL}/rest/v1/escolas?nome=ilike.${encodeURIComponent(nome)}&select=id,nome&limit=1`, {
-        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
-      });
-      const exists = await check.json();
-      if (Array.isArray(exists) && exists.length > 0) {
-        selecionarEscola(exists[0].id, exists[0].nome);
-      } else {
-        const res = await fetch(`${SB_URL}/rest/v1/escolas`, {
-          method: 'POST',
-          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-          body: JSON.stringify({ nome })
-        });
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) selecionarEscola(data[0].id, data[0].nome);
-        else mostrarErroCad(2, 'Erro ao criar escola. Tente novamente.');
-      }
-      document.getElementById('cad-nova-escola').value = '';
-    } catch { mostrarErroCad(2, 'Erro de conexão ao criar escola.'); }
-  }
-
-  function irStep3() {
-    esconderErroCad(2);
-    cadData.escolaIds = escolasSelecionadas.map(e => e.id);
-    cadData.escolaNomes = escolasSelecionadas.map(e => e.nome);
-    irStep(3);
-  }
-
-  function irStep4() {
-    esconderErroCad(3);
-    const periodo = document.querySelector('input[name="periodo"]:checked')?.value || 'trimestre';
-    const dataInicio = document.getElementById('cad-data-inicio')?.value || '';
-    const dataFim = document.getElementById('cad-data-fim')?.value || '';
-    cadData.periodo = periodo; cadData.dataInicio = dataInicio; cadData.dataFim = dataFim;
-    const periodoLabel = { bimestre: 'Bimestre (4 períodos)', trimestre: 'Trimestre (3 períodos)', semestre: 'Semestre (2 períodos)', anual: 'Anual (sem divisão)' }[periodo] || 'Trimestre';
-    document.getElementById('cad-resumo').innerHTML = `
-      <div class="resumo-row"><span class="resumo-label">Nome</span><span class="resumo-value">${escapeHtml(cadData.nome)}</span></div>
-      <div class="resumo-row"><span class="resumo-label">E-mail</span><span class="resumo-value">${escapeHtml(cadData.email)}</span></div>
-      <div class="resumo-row"><span class="resumo-label">Login</span><span class="resumo-value">${escapeHtml(cadData.login)}</span></div>
-      <div class="resumo-row"><span class="resumo-label">Escola(s)</span><span class="resumo-value">${cadData.escolaNomes.length > 0 ? escapeHtml(cadData.escolaNomes.join(', ')) : '<em style="color:var(--muted)">Nenhuma</em>'}</span></div>
-      <div class="resumo-row"><span class="resumo-label">Período</span><span class="resumo-value">${periodoLabel}</span></div>
-      ${dataInicio ? `<div class="resumo-row"><span class="resumo-label">Início</span><span class="resumo-value">${formatDate(dataInicio)}</span></div>` : ''}
-      ${dataFim ? `<div class="resumo-row"><span class="resumo-label">Fim</span><span class="resumo-value">${formatDate(dataFim)}</span></div>` : ''}
-    `;
-    irStep('4-confirm');
-  }
-
-  function formatDate(dateStr) {
-    if (!dateStr) return '';
-    const [y,m,d] = dateStr.split('-');
-    return `${d}/${m}/${y}`;
-  }
-
-  function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
-  }
-
-  async function finalizarCadastro() {
-    esconderErroCad(4);
-    const role = document.querySelector('input[name="role"]:checked').value;
-    cadData.role = role;
-    const btn = document.getElementById('btn-cadastrar');
-    const spinner = document.getElementById('spin-cad');
-    const txt = document.getElementById('txt-cad');
-    btn.disabled = true; spinner.style.display = 'block'; txt.textContent = 'Criando conta...';
-    try {
-      const chkLogin = await fetch(`${SB_URL}/rest/v1/users?login=eq.${encodeURIComponent(cadData.login)}&select=id`, {
-        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
-      });
-      const dupLogin = await chkLogin.json();
-      if (Array.isArray(dupLogin) && dupLogin.length > 0) { mostrarErroCad(4, 'Este login já está em uso. Escolha outro.'); return; }
-      const chkEmail = await fetch(`${SB_URL}/rest/v1/users?email=ilike.${encodeURIComponent(cadData.email)}&select=id`, {
-        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
-      });
-      const dupEmail = await chkEmail.json();
-      if (Array.isArray(dupEmail) && dupEmail.length > 0) { mostrarErroCad(4, 'Este e-mail já está cadastrado.'); return; }
-      const payload = {
-        login: cadData.login, senha: cadData.senha, nome: cadData.nome, email: cadData.email,
-        role: cadData.role, periodo: cadData.periodo || 'trimestre',
-        ...(cadData.dataInicio ? { data_inicio_letivo: cadData.dataInicio } : {}),
-        ...(cadData.dataFim ? { data_fim_letivo: cadData.dataFim } : {})
-      };
-      if (cadData.escolaIds.length === 1) payload.escola_id = cadData.escolaIds[0];
-      if (cadData.escolaIds.length > 0) payload.escolas_ids = cadData.escolaIds;
-      const res = await fetch(`${SB_URL}/rest/v1/users`, {
-        method: 'POST',
-        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (res.ok) {
-        let user = Array.isArray(data) && data.length > 0 ? data[0] : null;
-        if (!user) {
-          try {
-            const chk = await fetch(`${SB_URL}/rest/v1/users?login=eq.${encodeURIComponent(cadData.login)}&select=id,login,role,nome,escola_id,escolas_ids`, {
-              headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
-            });
-            const ud = await chk.json();
-            if (Array.isArray(ud) && ud.length > 0) user = ud[0];
-          } catch {}
-        }
-        if (user) sessionStorage.setItem('ded_user', JSON.stringify(user));
-        irStep('sucesso');
-        if (role === 'professor_individual') document.getElementById('cad-turma-box').style.display = 'block';
-      } else {
-        mostrarErroCad(4, (data && data.message) || 'Erro ao criar conta. Tente novamente.');
-      }
-    } catch {
-      mostrarErroCad(4, 'Erro de conexão. Verifique sua internet.');
-    } finally {
-      btn.disabled = false; spinner.style.display = 'none'; txt.textContent = 'Criar minha conta';
-    }
-  }
-
-  async function criarTurma() {
-    const nome = document.getElementById('nome-turma').value.trim();
-    if (!nome) return;
-    const user = JSON.parse(sessionStorage.getItem('ded_user') || '{}');
-    try {
-      await fetch(`${SB_URL}/rest/v1/turmas`, {
-        method: 'POST',
-        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, professor_id: user.id, escola_id: user.escola_id || null })
-      });
-      document.getElementById('cad-turma-box').innerHTML = '<p style="color:#22C55E;font-weight:700;text-align:center;padding:10px">✅ Turma criada com sucesso!</p>';
-    } catch { alert('Erro ao criar turma.'); }
-  }
-
-  function irParaDashboard() {
-    const user = JSON.parse(sessionStorage.getItem('ded_user') || '{}');
-    window.location.href = ROTAS[user.role] || DASH;
-  }
-
-  async function cadGoogle() {
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: 'openid email profile',
-      callback: async (response) => {
-        if (response.error) { alert('Erro ao autenticar com o Google.'); return; }
-        try {
-          const profile = await (await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: `Bearer ${response.access_token}` }
-          })).json();
-          if (!profile.email) { alert('Não foi possível obter o e-mail.'); return; }
-          document.getElementById('cad-nome').value = profile.name || '';
-          document.getElementById('cad-email').value = profile.email;
-          document.getElementById('cad-login').value = profile.email.split('@')[0].replace(/[^a-z0-9]/gi,'').toLowerCase();
-          cadData._googleToken = response.access_token;
-          irStep(1);
-        } catch { alert('Erro ao obter dados do Google.'); }
-      }
-    });
-    client.requestAccessToken();
-  }
+  // ═══ EVENTOS ═══
+  document.getElementById('inp-login').addEventListener('keydown', e => { if (e.key === 'Enter') fazerLogin(); });
+  document.getElementById('inp-senha').addEventListener('keydown', e => { if (e.key === 'Enter') fazerLogin(); });
 
   // Service Worker
   if ('serviceWorker' in navigator) {
