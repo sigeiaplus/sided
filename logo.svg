@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 56" role="img" aria-label="SIREDE+">
+  <defs>
+    <mask id="onda" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="56">
+      <rect width="64" height="56" fill="#fff"/>
+      <path d="M8 36 Q20 31 32 36 T56 36" fill="none" stroke="#000" stroke-width="2.4" stroke-linecap="round"/>
+    </mask>
+  </defs>
+  <g fill="#F26A1B">
+    <path mask="url(#onda)" d="M10 22 L32 31 L54 22 V40 Q32 54 10 40 Z"/>
+    <path d="M0 14 L32 0 L64 14 L32 27 Z"/>
+    <path d="M57 19 H59.4 V43 H57 Z"/>
+    <path d="M56 40 H60.4 V52 H56 Z"/>
+  </g>
+</svg>
