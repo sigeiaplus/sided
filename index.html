@@ -1,98 +1,907 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#F26A1B">
-  <title>Entrar | SIREDE+</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#0B1B4D"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-title" content="SIDED+"/>
+  <meta name="description" content="SIDED+ — Diário Escolar Digital. Acesse com seu e-mail, login ou CPF."/>
+  <link rel="icon" type="image/png" href="sided_logo.png"/>
+  <link rel="apple-touch-icon" href="sided_logo.png"/>
+  <link rel="manifest" href="manifest.json"/>
+  <title>SIDED+ — Acesso</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy: #0B1B4D;
+      --primary: #2563EB;
+      --primary-dark: #1E40AF;
+      --primary-light: #60A5FA;
+      --sky: #DBEAFE;
+      --text: #0F172A;
+      --muted: #64748B;
+      --line: #E2E8F0;
+      --soft: #F5F8FF;
+      --success: #22C55E;
+    }
+
+    html, body { min-height: 100%; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      color: var(--text);
+      background: #fff;
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ═════════ PAINEL ESQUERDO ═════════ */
+    .brand {
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      background: linear-gradient(150deg, #081338 0%, #1E3A8A 45%, #2563EB 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 48px 64px;
+      isolation: isolate;
+    }
+
+    .brand::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.18) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: radial-gradient(ellipse 80% 70% at 30% 40%, #000 20%, transparent 80%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 70% at 30% 40%, #000 20%, transparent 80%);
+      z-index: -1;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(70px);
+      z-index: -1;
+      animation: drift 14s ease-in-out infinite alternate;
+    }
+    .orb.o1 { width: 420px; height: 420px; background: rgba(96,165,250,0.55); top: -120px; right: -120px; }
+    .orb.o2 { width: 360px; height: 360px; background: rgba(37,99,235,0.7); bottom: -140px; left: -100px; animation-delay: -6s; }
+
+    .ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.12);
+      z-index: -1;
+    }
+    .ring.r1 { width: 640px; height: 640px; right: -240px; top: 18%; }
+    .ring.r2 { width: 420px; height: 420px; right: -120px; top: 28%; }
+
+    @keyframes drift {
+      from { transform: translate(0,0) scale(1); }
+      to { transform: translate(40px,-30px) scale(1.12); }
+    }
+
+    .brand-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      animation: fadeUp 0.7s ease both;
+    }
+
+    .brand-top img {
+      width: 46px; height: 46px;
+      border-radius: 13px;
+      object-fit: cover;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.1);
+    }
+
+    .brand-name {
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: 1px;
+    }
+    .brand-name span { color: var(--primary-light); }
+
+    .brand-tag {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+      margin-top: 2px;
+    }
+
+    .brand-mid { max-width: 560px; }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--primary-light);
+      margin-bottom: 22px;
+      animation: fadeUp 0.7s 0.1s ease both;
+    }
+
+    .eyebrow i {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 0 rgba(34,197,94,0.6);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.55); }
+      70% { box-shadow: 0 0 0 10px rgba(34,197,94,0); }
+      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+    }
+
+    .headline {
+      font-family: 'Playfair Display', serif;
+      font-weight: 900;
+      font-size: clamp(40px, 4.6vw, 68px);
+      line-height: 1.04;
+      margin-bottom: 18px;
+      animation: fadeUp 0.7s 0.2s ease both;
+    }
+    .headline em { font-style: italic; color: var(--primary-light); }
+    .headline small {
+      display: block;
+      font-weight: 400;
+      font-style: italic;
+      font-size: 0.62em;
+      color: rgba(255,255,255,0.55);
+      margin-top: 6px;
+    }
+
+    .lead {
+      font-size: 16px;
+      line-height: 1.75;
+      color: rgba(255,255,255,0.72);
+      max-width: 440px;
+      animation: fadeUp 0.7s 0.3s ease both;
+    }
+
+    /* Cards flutuantes de ilustração */
+    .mock {
+      position: relative;
+      height: 250px;
+      margin-top: 44px;
+      animation: fadeUp 0.9s 0.45s ease both;
+    }
+
+    .glass {
+      position: absolute;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.22);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(2,8,40,0.35);
+      animation: float 7s ease-in-out infinite;
+    }
+
+    .glass.g1 { left: 0; top: 0; width: 290px; padding: 18px 20px; }
+    .glass.g2 { left: 250px; top: 62px; width: 210px; padding: 16px 18px; animation-delay: -2.5s; }
+    .glass.g3 { left: 70px; top: 176px; padding: 12px 18px; display: flex; align-items: center; gap: 12px; animation-delay: -4.5s; border-radius: 100px; }
+
+    @keyframes float {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+
+    .g-title {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+      font-family: 'Space Mono', monospace;
+      margin-bottom: 14px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 0;
+    }
+
+    .avatar {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #93C5FD, #3B82F6);
+      display: grid; place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #0B1B4D;
+      flex-shrink: 0;
+    }
+
+    .chk {
+      margin-left: auto;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: rgba(34,197,94,0.95);
+      display: grid; place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .chk.off { background: rgba(255,255,255,0.18); color: transparent; }
+
+    .big-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 40px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 44px;
+      margin-top: 14px;
+    }
+    .bars b {
+      flex: 1;
+      border-radius: 4px 4px 0 0;
+      background: linear-gradient(180deg, #BFDBFE, #3B82F6);
+      transform-origin: bottom;
+      animation: grow 1.2s 0.8s ease both;
+    }
+    @keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+    .dot-ok {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--success);
+    }
+    .glass.g3 span { font-size: 13px; font-weight: 600; }
+
+    .brand-bottom {
+      font-size: 12px;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.5px;
+    }
+
+    /* ═════════ PAINEL DO FORMULÁRIO ═════════ */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 48px 32px;
+      background:
+        radial-gradient(600px 400px at 100% 0%, rgba(219,234,254,0.7), transparent 70%),
+        #fff;
+    }
+
+    .form-wrap {
+      width: 100%;
+      max-width: 400px;
+      animation: fadeUp 0.7s 0.15s ease both;
+    }
+
+    .mobile-logo { display: none; }
+
+    .welcome {
+      font-family: 'Playfair Display', serif;
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+    .welcome em { font-style: italic; color: var(--primary); }
+
+    .welcome-sub {
+      font-size: 15px;
+      color: var(--muted);
+      margin-bottom: 34px;
+    }
+
+    .error-msg {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #B91C1C;
+      margin-bottom: 18px;
+    }
+    .error-msg.show { display: flex; animation: shake 0.4s ease; }
+    .error-msg svg { flex-shrink: 0; }
+
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%,60% { transform: translateX(-6px); }
+      40%,80% { transform: translateX(6px); }
+    }
+
+    .field { margin-bottom: 20px; }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      color: #334155;
+      margin-bottom: 8px;
+    }
+
+    .control {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .control .ico {
+      position: absolute;
+      left: 16px;
+      color: #94A3B8;
+      display: flex;
+      pointer-events: none;
+      transition: color 0.2s;
+    }
+
+    .control input {
+      width: 100%;
+      height: 54px;
+      padding: 0 16px 0 48px;
+      background: var(--soft);
+      border: 1.5px solid transparent;
+      border-radius: 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      color: var(--text);
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .control input::placeholder { color: #94A3B8; }
+    .control input:hover { background: #EEF4FF; }
+
+    .control input:focus {
+      background: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(37,99,235,0.14);
+    }
+    .control:focus-within .ico { color: var(--primary); }
+
+    .eye-btn {
+      position: absolute;
+      right: 8px;
+      width: 38px; height: 38px;
+      background: none;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      color: #94A3B8;
+      display: grid; place-items: center;
+      transition: all 0.2s;
+    }
+    .eye-btn:hover { color: var(--primary); background: var(--sky); }
+
+    .btn-login {
+      width: 100%;
+      height: 56px;
+      margin-top: 10px;
+      background: linear-gradient(135deg, #2563EB, #1E40AF);
+      border: none;
+      border-radius: 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 12px 28px rgba(37,99,235,0.35);
+      transition: all 0.25s ease;
+    }
+    .btn-login:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(37,99,235,0.45); }
+    .btn-login:active { transform: translateY(0); }
+    .btn-login:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+    .btn-login .arrow { transition: transform 0.25s; }
+    .btn-login:hover .arrow { transform: translateX(4px); }
+
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin: 26px 0 22px;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--line);
+    }
+    .divider span {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .alt-row { display: flex; gap: 12px; }
+
+    .alt-btn {
+      flex: 1;
+      height: 52px;
+      background: #fff;
+      border: 1.5px solid var(--line);
+      border-radius: 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s;
+    }
+    .alt-btn:hover {
+      border-color: var(--primary-light);
+      background: var(--soft);
+      transform: translateY(-1px);
+    }
+    .alt-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .alt-btn svg { width: 20px; height: 20px; }
+
+    #btn-passkey { display: none; }
+
+    .secure {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 28px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═════════ RESPONSIVO ═════════ */
+    @media (max-width: 1100px) {
+      .brand { padding: 40px 40px; }
+      .mock { transform: scale(0.88); transform-origin: left top; }
+    }
+
+    @media (max-width: 900px) {
+      body { grid-template-columns: 1fr; }
+
+      .brand {
+        padding: 36px 28px 90px;
+        min-height: 0;
+        gap: 24px;
+      }
+      .brand-mid .lead, .mock, .brand-bottom, .ring { display: none; }
+      .headline { font-size: 38px; margin-bottom: 0; }
+      .eyebrow { margin-bottom: 14px; }
+
+      .panel {
+        margin-top: -56px;
+        background: #fff;
+        border-radius: 32px 32px 0 0;
+        padding: 36px 24px 40px;
+        position: relative;
+        justify-content: flex-start;
+        flex: 1;
+      }
+      .welcome { font-size: 30px; }
+      .welcome-sub { margin-bottom: 26px; }
+    }
+
+    @media (max-width: 380px) {
+      .alt-row { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
 </head>
 <body>
-  
-  <div class="splash" id="splash" role="status" aria-label="Carregando"><span class="spinner"></span></div>
 
-  <div class="app" id="view-app" hidden>
-    <aside class="side" id="side" aria-label="Menu principal">
-      <div class="brand__logo side__logo">
-        <span class="brand__mark" aria-hidden="true"><img src="logo.svg" alt=""></span>
-        <span class="brand__name">SIREDE<b>+</b></span>
-      </div>
-      <nav class="menu" id="menu"></nav>
-      <button type="button" class="menu__item side__sair" id="btn-sair"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4M16 8l4 4-4 4M20 12H9"/></svg><span>Sair</span></button>
-    </aside>
-    <div class="scrim" id="scrim" hidden></div>
+<!-- ═════════ PAINEL DA MARCA ═════════ -->
+<aside class="brand">
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="ring r1"></div>
+  <div class="ring r2"></div>
 
-    <div class="app__main">
-      <header class="topo">
-        <button type="button" class="topo__menu" id="btn-menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="side"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-        <h1 class="topo__titulo" id="topo-titulo"></h1>
-        <div class="topo__user">
-          <span class="topo__nome" id="topo-nome"></span>
-          <span class="topo__avatar" id="topo-avatar" aria-hidden="true"></span>
-        </div>
-      </header>
-      <main class="conteudo" id="conteudo" tabindex="-1"></main>
+  <div class="brand-top">
+    <img src="sided_logo.png" alt="SIDED+"/>
+    <div>
+      <div class="brand-name">SIDED<span>+</span></div>
+      <div class="brand-tag">Diário Escolar Digital</div>
     </div>
   </div>
 
-  <main class="login" id="view-login" hidden>
+  <div class="brand-mid">
+    <div class="eyebrow"><i></i> Sistema online</div>
+    <h1 class="headline">
+      Seu diário,<br/><em>sua turma.</em>
+      <small>Sua liberdade.</small>
+    </h1>
+    <p class="lead">Chamadas, notas e planejamentos em um só lugar — rápido, simples e de qualquer dispositivo.</p>
 
-    <section class="brand" aria-label="Apresentação do SIREDE+">
-      <div class="brand__logo">
-        <span class="brand__mark" aria-hidden="true"><img src="logo.svg" alt=""></span>
-        <span class="brand__name">SIREDE<b>+</b></span>
+    <div class="mock" aria-hidden="true">
+      <div class="glass g1">
+        <div class="g-title">Chamada · 3º Ano A</div>
+        <div class="row"><div class="avatar">A</div>Ana Beatriz<span class="chk">✓</span></div>
+        <div class="row"><div class="avatar">C</div>Carlos Eduardo<span class="chk">✓</span></div>
+        <div class="row"><div class="avatar">L</div>Letícia Souza<span class="chk off">✓</span></div>
       </div>
-      <div class="brand__body">
-        <h1 class="brand__title">A gestão da rede escolar em um só lugar.</h1>
-        <p class="brand__text">Acesse o ambiente administrativo com seu CPF e sua senha.</p>
+
+      <div class="glass g2">
+        <div class="g-title">Média da turma</div>
+        <div class="big-num">8,4</div>
+        <div class="bars">
+          <b style="height:45%"></b><b style="height:62%"></b><b style="height:55%"></b>
+          <b style="height:80%"></b><b style="height:70%"></b><b style="height:95%"></b>
+        </div>
       </div>
-      <p class="brand__foot">Ecossistema SIGEIA+</p>
-    </section>
 
-    <section class="panel">
-      <form class="card" id="form-login" novalidate>
-        <header class="card__head">
-          <h2>Entrar</h2>
-          <p>Informe seus dados para continuar.</p>
-        </header>
+      <div class="glass g3">
+        <span class="dot-ok"></span>
+        <span>Tudo sincronizado</span>
+      </div>
+    </div>
+  </div>
 
-        <div class="field" data-field="cpf">
-          <label for="cpf">CPF</label>
-          <input id="cpf" name="cpf" type="text" inputmode="numeric" autocomplete="username"
-                 placeholder="000.000.000-00" maxlength="14" aria-describedby="cpf-erro" required>
-          <p class="field__erro" id="cpf-erro" role="alert"></p>
-        </div>
+  <div class="brand-bottom">© 2026 SIDED+ — Diário Escolar Digital</div>
+</aside>
 
-        <div class="field" data-field="senha">
-          <label for="senha">Senha</label>
-          <div class="field__senha">
-            <input id="senha" name="senha" type="password" autocomplete="current-password"
-                   placeholder="Digite sua senha" aria-describedby="senha-erro" required>
-            <button type="button" class="olho" id="btn-olho" aria-label="Mostrar senha" aria-pressed="false">
-              <svg class="olho__aberto" viewBox="0 0 24 24" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-              <svg class="olho__fechado" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.5 10.5 0 0 1 12 5c6.5 0 10.5 7 10.5 7a17.7 17.7 0 0 1-3.1 3.9M6.5 6.6A17.4 17.4 0 0 0 1.5 12S5.5 19 12 19a10 10 0 0 0 4.4-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
-            </button>
-          </div>
-          <p class="field__erro" id="senha-erro" role="alert"></p>
-        </div>
+<!-- ═════════ PAINEL DO LOGIN ═════════ -->
+<main class="panel">
+  <div class="form-wrap">
 
-        <button type="submit" class="btn" id="btn-entrar">Entrar</button>
-        <p class="aviso" id="aviso" role="status" aria-live="polite"></p>
-      </form>
+    <h2 class="welcome">Bem-vindo<br/><em>de volta</em></h2>
+    <p class="welcome-sub">Acesse com seu e-mail, login ou CPF.</p>
 
-      <p class="rodape">© <span id="ano"></span> SIREDE+</p>
-    </section>
+    <div id="error-msg" class="error-msg" role="alert">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="error-text"></span>
+    </div>
 
-  </main>
+    <div class="field">
+      <label for="inp-login">E-mail, login ou CPF</label>
+      <div class="control">
+        <span class="ico">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+        <input id="inp-login" type="text" placeholder="Digite seu acesso" autocomplete="username" autocapitalize="none" oninput="mascaraLoginCpf(this)"/>
+      </div>
+    </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-  <script src="auth.js"></script>
-  <script src="router.js"></script>
-  <script src="login.js"></script>
-  <script src="app.js"></script>
+    <div class="field">
+      <label for="inp-senha">Senha</label>
+      <div class="control">
+        <span class="ico">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </span>
+        <input id="inp-senha" type="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:52px"/>
+        <button class="eye-btn" id="eye-btn" onclick="toggleSenha()" type="button" aria-label="Mostrar ou ocultar senha">
+          <svg id="eye-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn-login" id="btn-login" onclick="fazerLogin()">
+      <span class="spinner" id="spinner"></span>
+      <span id="btn-txt">Entrar</span>
+      <svg class="arrow" id="btn-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+    </button>
+
+    <div class="divider"><span>ou continue com</span></div>
+
+    <div class="alt-row">
+      <button class="alt-btn" id="btn-passkey" onclick="loginPasskey()" type="button">
+        🔑 Chave de acesso
+      </button>
+      <button class="alt-btn" onclick="loginGoogle()" type="button">
+        <svg viewBox="0 0 48 48">
+          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+        Google
+      </button>
+    </div>
+
+    <div class="secure">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Conexão segura e criptografada
+    </div>
+
+  </div>
+</main>
+
+<script>
+  // ═══ CONSTANTS ═══
+  const SB_URL = 'https://biocjxggjjfeqmpuysik.supabase.co';
+  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpb2NqeGdnampmZXFtcHV5c2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODUwOTQsImV4cCI6MjA4OTc2MTA5NH0.3bL3dKqiWGoHROE6vSzf-7Orp0GLcLpn4mHtUSwC0dU';
+  const DASH = 'dashboard.html';
+  const GOOGLE_CLIENT_ID = '809381065699-dm4ie2ob9kioi4nh1ureufkorcc77kck.apps.googleusercontent.com';
+
+  const ROTAS = {
+    professor: 'professor_dashboard.html',
+    professor_individual: 'professorindividual_dashboard.html',
+    diretor: 'diretor_dashboard.html',
+    especialista: 'diretor_dashboard.html',
+    admin: 'admin_dashboard.html',
+    secretaria: 'secretaria_dashboard.html',
+    aluno: 'aluno_dashboard.html',
+    representante: 'representante_dashboard.html'
+  };
+
+  let _supabase = null;
+  function getSupabase() {
+    if (!_supabase) _supabase = window.supabase.createClient(SB_URL, SB_KEY);
+    return _supabase;
+  }
+
+  // ═══ UI ═══
+  const EYE_ON = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  const EYE_OFF = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+
+  function toggleSenha() {
+    const inp = document.getElementById('inp-senha');
+    const mostrar = inp.type === 'password';
+    inp.type = mostrar ? 'text' : 'password';
+    document.getElementById('eye-svg').innerHTML = mostrar ? EYE_OFF : EYE_ON;
+  }
+
+  function mostrarErro(msg) {
+    const box = document.getElementById('error-msg');
+    document.getElementById('error-text').textContent = msg;
+    box.classList.remove('show');
+    void box.offsetWidth; // reinicia animação
+    box.classList.add('show');
+  }
+
+  function esconderErro() {
+    document.getElementById('error-msg').classList.remove('show');
+  }
+
+  // Máscara de CPF só quando o usuário digita apenas números
+  function mascaraLoginCpf(el) {
+    const raw = el.value;
+    if (!/^[0-9.\-]*$/.test(raw)) return; // login ou e-mail: não mexe
+    let v = raw.replace(/\D/g, '').slice(0, 11);
+    if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+    else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+    else if (v.length > 3) v = v.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+    el.value = v;
+  }
+
+  // ═══ LOGIN ═══
+  async function fazerLogin() {
+    esconderErro();
+    const login = document.getElementById('inp-login').value.trim();
+    const senha = document.getElementById('inp-senha').value;
+    if (!login || !senha) { mostrarErro('Preencha login e senha.'); return; }
+
+    const btn = document.getElementById('btn-login');
+    const spinner = document.getElementById('spinner');
+    const arrow = document.getElementById('btn-arrow');
+    const txt = document.getElementById('btn-txt');
+    btn.disabled = true; spinner.style.display = 'block'; arrow.style.display = 'none'; txt.textContent = 'Entrando...';
+
+    try {
+      const res = await fetch(`${SB_URL}/rest/v1/rpc/buscar_usuario_login`, {
+        method: 'POST',
+        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_login: login, p_senha: senha })
+      });
+      const text = await res.text();
+      if (!res.ok || !text || text === '[]') {
+        mostrarErro('Login ou senha incorretos.');
+        return;
+      }
+      const data = JSON.parse(text);
+      if (!Array.isArray(data) || data.length === 0) {
+        mostrarErro('Login ou senha incorretos.');
+        return;
+      }
+      const user = data[0];
+
+      // Se o usuário tem e-mail, tenta abrir sessão no Supabase Auth (sem bloquear o acesso)
+      if (user.email) {
+        try {
+          await getSupabase().auth.signInWithPassword({ email: user.email, password: senha });
+        } catch (e) { console.warn('[auth]', e); }
+      }
+
+      sessionStorage.setItem('ded_user', JSON.stringify(user));
+      await _pkOferecer(user);
+      window.location.href = ROTAS[user.role] || DASH;
+    } catch (e) {
+      console.error(e);
+      mostrarErro('Erro de conexão. Verifique sua internet.');
+    } finally {
+      btn.disabled = false; spinner.style.display = 'none'; arrow.style.display = ''; txt.textContent = 'Entrar';
+    }
+  }
+
+  // ═══ GOOGLE ═══
+  function loginGoogle() {
+    esconderErro();
+    if (!window.google?.accounts?.oauth2) {
+      mostrarErro('Login com Google indisponível no momento. Tente novamente.');
+      return;
+    }
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'openid email profile',
+      callback: async (response) => {
+        if (response.error) { mostrarErro('Erro ao autenticar com o Google.'); return; }
+        try {
+          const profile = await (await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${response.access_token}` }
+          })).json();
+          if (!profile.email) { mostrarErro('Não foi possível obter o e-mail do Google.'); return; }
+          const res = await fetch(`${SB_URL}/rest/v1/users?email=ilike.${encodeURIComponent(profile.email)}&select=id,login,role,nome,email,escola_id,escolas_ids`, {
+            headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+          });
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            sessionStorage.setItem('ded_user', JSON.stringify(data[0]));
+            await _pkOferecer(data[0]);
+            window.location.href = ROTAS[data[0].role] || DASH;
+          } else {
+            mostrarErro('Conta não encontrada para este e-mail do Google.');
+          }
+        } catch (e) {
+          console.error(e);
+          mostrarErro('Erro ao obter dados do Google.');
+        }
+      }
+    });
+    client.requestAccessToken();
+  }
+
+  // ═══ PASSKEY (WebAuthn) ═══
+  const _PK_KEY = 'sided_passkey_cred';
+  const _PK_LABEL = '🔑 Chave de acesso';
+
+  function _pkDisponivel() {
+    return !!(window.PublicKeyCredential && navigator.credentials?.create);
+  }
+
+  function _b64ToBuffer(b64) {
+    const s = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from(s, c => c.charCodeAt(0)).buffer;
+  }
+
+  function _bufferToB64(buf) {
+    return btoa(String.fromCharCode(...new Uint8Array(buf)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+
+  async function _pkRegistrar(user) {
+    if (!_pkDisponivel()) return;
+    try {
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+      const cred = await navigator.credentials.create({
+        publicKey: {
+          challenge,
+          rp: { name: 'SIDED+', id: location.hostname },
+          user: {
+            id: new TextEncoder().encode(String(user.id)),
+            name: user.login || user.email || String(user.id),
+            displayName: user.nome || user.login || 'Usuário'
+          },
+          pubKeyCredParams: [
+            { type: 'public-key', alg: -7 },
+            { type: 'public-key', alg: -257 }
+          ],
+          authenticatorSelection: {
+            authenticatorAttachment: 'platform',
+            userVerification: 'required',
+            residentKey: 'preferred'
+          },
+          timeout: 60000
+        }
+      });
+      localStorage.setItem(_PK_KEY, JSON.stringify({
+        credId: _bufferToB64(cred.rawId),
+        user: { id: user.id, login: user.login, role: user.role, nome: user.nome, email: user.email }
+      }));
+    } catch (e) {
+      console.warn('[PASSKEY] Registro cancelado:', e.message);
+    }
+  }
+
+  async function _pkOferecer(user) {
+    if (!_pkDisponivel()) return;
+    if (localStorage.getItem(_PK_KEY)) return;
+    if (confirm('Deseja cadastrar uma chave de acesso (biometria/PIN) para entrar mais rápido na próxima vez?')) {
+      await _pkRegistrar(user);
+    }
+  }
+
+  async function loginPasskey() {
+    esconderErro();
+    if (!_pkDisponivel()) { mostrarErro('Este dispositivo não suporta chaves de acesso.'); return; }
+    const pkData = JSON.parse(localStorage.getItem(_PK_KEY) || 'null');
+    if (!pkData) { mostrarErro('Nenhuma chave de acesso cadastrada. Faça login com senha primeiro.'); return; }
+    const btn = document.getElementById('btn-passkey');
+    btn.disabled = true; btn.textContent = 'Verificando...';
+    try {
+      await navigator.credentials.get({
+        publicKey: {
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
+          allowCredentials: [{ type: 'public-key', id: _b64ToBuffer(pkData.credId) }],
+          userVerification: 'required',
+          timeout: 60000
+        }
+      });
+      sessionStorage.setItem('ded_user', JSON.stringify(pkData.user));
+      window.location.href = ROTAS[pkData.user.role] || DASH;
+    } catch (e) {
+      if (e.name !== 'NotAllowedError') mostrarErro('Falha na verificação. Tente com login e senha.');
+      console.warn('[PASSKEY] Autenticação falhou:', e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = _PK_LABEL;
+    }
+  }
+
+  function _pkAtualizarBotao() {
+    const btn = document.getElementById('btn-passkey');
+    btn.style.display = (_pkDisponivel() && localStorage.getItem(_PK_KEY)) ? 'flex' : 'none';
+  }
+  _pkAtualizarBotao();
+
+  // ═══ EVENTOS ═══
+  document.getElementById('inp-login').addEventListener('keydown', e => { if (e.key === 'Enter') fazerLogin(); });
+  document.getElementById('inp-senha').addEventListener('keydown', e => { if (e.key === 'Enter') fazerLogin(); });
+
+  // Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+</script>
 </body>
 </html>
