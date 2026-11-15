@@ -39,8 +39,16 @@ function liberarFoco() {
   }
 }
 
-function fecharModal(id) { liberarFoco(); document.getElementById(id).classList.remove('open'); }
-function fecharModalOutside(e, id) { if (e.target === document.getElementById(id)) fecharModal(id); }
+function fecharModal(id) {
+  liberarFoco();
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
+
+// Clique no fundo escuro NÃO fecha mais o card. O modal só sai pelo botão de
+// fechar/cancelar, para um clique acidental fora não descartar o que já foi
+// digitado. Mantida a assinatura para os onclick existentes continuarem válidos.
+function fecharModalOutside() { /* intencionalmente vazio */ }
 
 // Rede de segurança global: qualquer toque em botão/link enquanto um campo de
 // texto (input/textarea/select) ainda está com foco libera esse foco ANTES do

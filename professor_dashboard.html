@@ -525,7 +525,14 @@
     /* MODAL */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 9000; align-items: center; justify-content: center; padding: 20px; }
     .modal-overlay.open { display: flex; }
-    .modal { background: var(--white); border-radius: 16px; width: 100%; max-width: 460px; max-height: 88vh; overflow-y: auto; animation: slideUp 0.24s ease; }
+    .modal { background: var(--white); border-radius: 16px; width: 100%; max-width: 460px; max-height: 88vh; overflow-y: auto; animation: slideUp 0.24s ease; scrollbar-width: thin; scrollbar-color: #C9D4EC transparent; }
+    /* Rolagem: trilho transparente e polegar arredondado. Sem isso o trilho
+       quadrado do sistema cobre a curva dos cantos superior/inferior direito do card. */
+    .modal::-webkit-scrollbar, .modal ::-webkit-scrollbar { width: 8px; height: 8px; }
+    .modal::-webkit-scrollbar-track, .modal ::-webkit-scrollbar-track { background: transparent; margin: 16px 0; }
+    .modal::-webkit-scrollbar-thumb, .modal ::-webkit-scrollbar-thumb { background: #C9D4EC; border: 2px solid transparent; border-radius: 99px; background-clip: padding-box; }
+    .modal::-webkit-scrollbar-thumb:hover, .modal ::-webkit-scrollbar-thumb:hover { background: #AEBEDF; border: 2px solid transparent; background-clip: padding-box; }
+    .modal::-webkit-scrollbar-corner, .modal ::-webkit-scrollbar-corner { background: transparent; }
     .modal-header { padding: 20px 22px 0; display: flex; align-items: center; justify-content: space-between; }
     .modal-title { font-size: 16px; font-weight: 700; color: var(--text); }
     .modal-close { width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--border); background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
@@ -2558,7 +2565,7 @@
 <script src="/habilidades_aulas.js"></script>
 <script src="/init.js"></script>
 <!-- MODAL FICHA DO ALUNO -->
-<div class="modal-overlay" id="modal-ficha-aluno" onclick="if(event.target===this)this.classList.remove('open')" style="align-items:center;z-index:9050;">
+<div class="modal-overlay" id="modal-ficha-aluno" style="align-items:center;z-index:9050;">
   <div class="modal" style="max-width:500px;max-height:88vh;overflow-y:auto;">
 
     <!-- Header com avatar -->
@@ -2630,7 +2637,7 @@
 </div>
 
 <!-- MODAL SELETOR DE ALUNO (visual, cards) -->
-<div class="modal-overlay" id="modal-seletor-aluno" onclick="if(event.target===this)this.classList.remove('open')" style="align-items:center;z-index:9300;">
+<div class="modal-overlay" id="modal-seletor-aluno" style="align-items:center;z-index:9300;">
   <div class="modal" style="max-width:480px;max-height:88vh;display:flex;flex-direction:column;">
     <div style="padding:18px 20px;border-bottom:1px solid var(--border);flex-shrink:0;">
       <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px;" id="seletor-aluno-titulo">Selecionar aluno</div>
@@ -2646,7 +2653,7 @@
 </div>
 
 <!-- MODAL HISTÓRICO DE PRESENÇA DO ALUNO (chamada) -->
-<div class="modal-overlay" id="modal-historico-presenca" onclick="if(event.target===this)this.classList.remove('open')" style="align-items:center;z-index:9200;">
+<div class="modal-overlay" id="modal-historico-presenca" style="align-items:center;z-index:9200;">
   <div class="modal" style="max-width:440px;max-height:85vh;overflow-y:auto;">
     <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--white);z-index:1;">
       <div>
@@ -2662,7 +2669,7 @@
 </div>
 
 <!-- MODAL ALERTAS DE RISCO -->
-<div class="modal-overlay" id="modal-alertas-risco" onclick="if(event.target===this)this.classList.remove('open')" style="align-items:center;z-index:9150;">
+<div class="modal-overlay" id="modal-alertas-risco" style="align-items:center;z-index:9150;">
   <div class="modal" style="max-width:520px;max-height:85vh;overflow-y:auto;">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--white);z-index:1;">
       <div>
@@ -2681,7 +2688,7 @@
 </div>
 
 <!-- MODAL COPIAR AULA -->
-<div class="modal-overlay" id="modal-copiar-aula" onclick="if(event.target===this)this.classList.remove('open')" style="z-index:9000;">
+<div class="modal-overlay" id="modal-copiar-aula" style="z-index:9000;">
   <div class="modal" style="max-width:440px;">
     <div class="modal-header">
       <div>
@@ -2707,7 +2714,7 @@
 </div>
 
 <!-- MODAL COPIAR AVALIAÇÃO -->
-<div class="modal-overlay" id="modal-copiar-avaliacao" onclick="if(event.target===this)this.classList.remove('open')" style="z-index:9000;">
+<div class="modal-overlay" id="modal-copiar-avaliacao" style="z-index:9000;">
   <div class="modal" style="max-width:440px;">
     <div class="modal-header">
       <div>
