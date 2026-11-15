@@ -60,23 +60,84 @@ document.addEventListener('pointerdown', (e) => {
 // Só fica visível de fato se o carregamento durar mais que _LOADING_DELAY_MS,
 // evitando "flash" de loading em trocas rápidas (cache hit).
 const _LOADING_DELAY_MS = 150;
+const _LOADING_FADE_MS = 180;
 let _loadingDepth = 0;      // suporta chamadas aninhadas (ex: showLoading dentro de showLoading)
 let _loadingTimer = null;
+let _loadingHideTimer = null;
 let _loadingEl = null;
 
 function _criarLoadingEl() {
   if (_loadingEl) return _loadingEl;
   const el = document.createElement('div');
   el.id = 'global-loading-overlay';
-  el.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(245,248,255,0.85);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;';
   el.innerHTML = `
-    <div style="width:44px;height:44px;border:4px solid #DBE4FF;border-top-color:#2563EB;border-radius:50%;animation:global-spin 0.8s linear infinite;"></div>
-    <div id="global-loading-msg" style="font-family:'Sora',sans-serif;font-size:13px;font-weight:600;color:#1B2550;">Carregando...</div>
+    <div class="gl-card">
+      <div class="gl-badge">
+        <img class="gl-logo" src="sided_logo.png" alt="SIDED" onerror="this.style.display='none'">
+      </div>
+      <div id="global-loading-msg" class="gl-msg">Carregando...</div>
+      <div class="gl-bar"><span></span></div>
+    </div>
   `;
   if (!document.getElementById('global-loading-style')) {
     const style = document.createElement('style');
     style.id = 'global-loading-style';
-    style.textContent = '@keyframes global-spin { to { transform: rotate(360deg); } }';
+    style.textContent = `
+      #global-loading-overlay {
+        position: fixed; inset: 0; z-index: 99998;
+        display: none; align-items: center; justify-content: center;
+        background: #F3F6FE;
+        font-family: 'Sora', sans-serif;
+        opacity: 0; transition: opacity ${_LOADING_FADE_MS}ms ease;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #global-loading-overlay.gl-on { opacity: 1; }
+      #global-loading-overlay .gl-card {
+        display: flex; flex-direction: column; align-items: center; gap: 16px;
+        min-width: 236px; max-width: 84vw;
+        padding: 32px 40px 28px;
+        background: #FFFFFF;
+        border: 1px solid #E4EAF8; border-radius: 22px;
+        box-shadow: 0 18px 45px rgba(37, 99, 235, .10), 0 2px 6px rgba(27, 37, 80, .05);
+        transform: translateY(10px) scale(.98);
+        transition: transform 240ms cubic-bezier(.22, 1, .36, 1);
+      }
+      #global-loading-overlay.gl-on .gl-card { transform: translateY(0) scale(1); }
+      .gl-badge {
+        display: flex; align-items: center; justify-content: center;
+        width: 64px; height: 64px; border-radius: 18px;
+        background: #F5F8FF; border: 1px solid #EAF0FE;
+        animation: global-loading-pulse 2s ease-in-out infinite;
+      }
+      .gl-logo { width: 46px; height: 46px; object-fit: contain; border-radius: 10px; }
+      .gl-msg {
+        font-size: 13.5px; font-weight: 600; line-height: 1.4;
+        color: #1B2550; letter-spacing: .1px; text-align: center;
+      }
+      .gl-bar {
+        width: 168px; height: 4px; border-radius: 99px;
+        background: #E8EEFC; overflow: hidden;
+      }
+      .gl-bar span {
+        display: block; width: 42%; height: 100%; border-radius: inherit;
+        background: linear-gradient(90deg, #2563EB, #7C5CFA);
+        animation: global-loading-bar 1.2s ease-in-out infinite;
+      }
+      @keyframes global-spin { to { transform: rotate(360deg); } }
+      @keyframes global-loading-bar {
+        0% { transform: translateX(-115%); }
+        100% { transform: translateX(290%); }
+      }
+      @keyframes global-loading-pulse {
+        0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, .18); }
+        50% { transform: scale(1.03); box-shadow: 0 0 0 7px rgba(37, 99, 235, 0); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #global-loading-overlay .gl-card { transition: none; transform: none; }
+        .gl-badge, .gl-bar span { animation: none; }
+        .gl-bar span { width: 100%; opacity: .6; }
+      }
+    `;
     document.head.appendChild(style);
   }
   document.body.appendChild(el);
@@ -94,8 +155,13 @@ function showLoading(msg = 'Carregando...') {
   const msgEl = document.getElementById('global-loading-msg');
   if (msgEl) msgEl.textContent = msg;
   clearTimeout(_loadingTimer);
+  clearTimeout(_loadingHideTimer);
   _loadingTimer = setTimeout(() => {
-    if (_loadingDepth > 0) el.style.display = 'flex';
+    if (_loadingDepth > 0) {
+      el.style.display = 'flex';
+      void el.offsetWidth; // força o reflow para a transição de entrada rodar
+      el.classList.add('gl-on');
+    }
   }, _LOADING_DELAY_MS);
 }
 
@@ -103,7 +169,12 @@ function hideLoading() {
   _loadingDepth = Math.max(0, _loadingDepth - 1);
   if (_loadingDepth === 0) {
     clearTimeout(_loadingTimer);
-    if (_loadingEl) _loadingEl.style.display = 'none';
+    if (!_loadingEl) return;
+    _loadingEl.classList.remove('gl-on');
+    clearTimeout(_loadingHideTimer);
+    _loadingHideTimer = setTimeout(() => {
+      if (_loadingDepth === 0 && _loadingEl) _loadingEl.style.display = 'none';
+    }, _LOADING_FADE_MS);
   }
 }
 
@@ -112,7 +183,11 @@ function hideLoading() {
 function forcarFecharLoading() {
   _loadingDepth = 0;
   clearTimeout(_loadingTimer);
-  if (_loadingEl) _loadingEl.style.display = 'none';
+  clearTimeout(_loadingHideTimer);
+  if (_loadingEl) {
+    _loadingEl.classList.remove('gl-on');
+    _loadingEl.style.display = 'none';
+  }
 }
 
 // ── PLACEHOLDER DE SKELETON PARA CONTAINERS DE LISTA ─────────────────────────
